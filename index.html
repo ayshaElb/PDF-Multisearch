@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Multi-Search Dashboard</title>
+    <!-- Google Fonts: Plus Jakarta Sans & JetBrains Mono for Code/Context -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- FontAwesome for Premium Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Main Stylesheet -->
+    <link rel="stylesheet" href="style.css">
+    <!-- PDF.js CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar / Header Area -->
+        <header class="app-header">
+            <div class="brand">
+                <div class="logo-icon">
+                    <i class="fa-solid fa-file-pdf"></i>
+                </div>
+                <div>
+                    <h1>PDF Multi-Search</h1>
+                    <p class="tagline">Analyseur & Dashboard de Recherche</p>
+                </div>
+            </div>
+            
+            <!-- Upload Box inside Header for compact layout, or Sidebar -->
+            <div class="upload-section">
+                <div id="dropzone" class="dropzone">
+                    <input type="file" id="file-input" accept="application/pdf" class="hidden">
+                    <div class="dropzone-content">
+                        <i class="fa-solid fa-cloud-arrow-up upload-icon"></i>
+                        <h3>Glissez votre PDF ici</h3>
+                        <p>ou <span class="browse-btn">parcourez vos fichiers</span></p>
+                        <span class="file-limits">Fichier PDF uniquement</span>
+                    </div>
+                </div>
+                
+                <!-- File Details (hidden initially) -->
+                <div id="file-details" class="file-details hidden">
+                    <div class="file-info-container">
+                        <div class="file-icon"><i class="fa-regular fa-file-pdf"></i></div>
+                        <div class="file-meta">
+                            <span id="pdf-filename" class="filename">document.pdf</span>
+                            <span id="pdf-filesize" class="filesize">0 KB</span>
+                        </div>
+                        <button id="remove-file-btn" class="icon-btn remove-btn" title="Retirer le document"><i class="fa-solid fa-xmark"></i></button>
+                    </div>
+                    
+                    <!-- Parsing Progress -->
+                    <div id="parse-progress-container" class="progress-container hidden">
+                        <div class="progress-bar-wrapper">
+                            <div id="parse-progress-bar" class="progress-bar" style="width: 0%"></div>
+                        </div>
+                        <div class="progress-text">
+                            <span id="parse-status">Lecture du document...</span>
+                            <span id="parse-percentage">0%</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Configuration / Search Controls -->
+            <div class="control-panel">
+                <div class="section-title">
+                    <i class="fa-solid fa-sliders"></i>
+                    <h2>Paramètres de recherche</h2>
+                </div>
+                
+                <!-- Tag Input for Keywords -->
+                <div class="input-group">
+                    <label for="keyword-input">Mots-clés / Expressions</label>
+                    <div class="tags-input-container" id="tags-input-container">
+                        <input type="text" id="keyword-input" placeholder="Ajoutez un terme et appuyez sur Entrée...">
+                    </div>
+                    <span class="input-tip">Saisissez un terme puis appuyez sur <strong>Entrée</strong> ou une <strong>virgule</strong></span>
+                </div>
+
+                <!-- Search Options -->
+                <div class="options-group">
+                    <label class="checkbox-container">
+                        <input type="checkbox" id="opt-case-sensitive">
+                        <span class="checkmark"></span>
+                        Respecter la casse (a ≠ A)
+                    </label>
+                    <label class="checkbox-container">
+                        <input type="checkbox" id="opt-whole-word">
+                        <span class="checkmark"></span>
+                        Mots entiers uniquement
+                    </label>
+                    <label class="checkbox-container">
+                        <input type="checkbox" id="opt-regex">
+                        <span class="checkmark"></span>
+                        Expression régulière (Regex)
+                    </label>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="action-buttons">
+                    <button id="search-btn" class="btn btn-primary" disabled>
+                        <i class="fa-solid fa-magnifying-glass"></i> Rechercher
+                    </button>
+                    <button id="reset-btn" class="btn btn-secondary">
+                        <i class="fa-solid fa-rotate-left"></i> Réinitialiser
+                    </button>
+                </div>
+            </div>
+            
+            <div class="header-footer">
+                <p>Développé avec <i class="fa-solid fa-heart text-danger"></i> &bull; Client-Side uniquement</p>
+            </div>
+        </header>
+
+        <!-- Main Dashboard View -->
+        <main class="app-main">
+            <!-- Welcome / Empty State -->
+            <div id="empty-state" class="empty-state">
+                <div class="empty-state-card">
+                    <div class="pulse-icon">
+                        <i class="fa-solid fa-file-invoice"></i>
+                    </div>
+                    <h2>Aucun document chargé</h2>
+                    <p>Pour commencer à effectuer des recherches multiples et explorer les statistiques, veuillez d'abord charger un document PDF dans la zone latérale.</p>
+                </div>
+            </div>
+
+            <!-- Dashboard Content (hidden initially) -->
+            <div id="dashboard-content" class="dashboard-content hidden">
+                
+                <!-- Stat Cards -->
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon icon-blue">
+                            <i class="fa-regular fa-file"></i>
+                        </div>
+                        <div class="stat-data">
+                            <span class="stat-label">Pages Analysées</span>
+                            <span id="stat-total-pages" class="stat-value">0</span>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-icon icon-purple">
+                            <i class="fa-solid fa-circle-nodes"></i>
+                        </div>
+                        <div class="stat-data">
+                            <span class="stat-label">Total Correspondances</span>
+                            <span id="stat-total-matches" class="stat-value">0</span>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-icon icon-teal">
+                            <i class="fa-solid fa-crown"></i>
+                        </div>
+                        <div class="stat-data">
+                            <span class="stat-label">Terme Principal</span>
+                            <span id="stat-top-term" class="stat-value">-</span>
+                        </div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-icon icon-orange">
+                            <i class="fa-solid fa-gauge-high"></i>
+                        </div>
+                        <div class="stat-data">
+                            <span class="stat-label">Vitesse de recherche</span>
+                            <span id="stat-search-time" class="stat-value">0 ms</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Distribution and Chart Section -->
+                <div class="dashboard-grid">
+                    <!-- Keyword Occurrence Chart (CSS/SVG) -->
+                    <div class="dashboard-panel chart-panel">
+                        <div class="panel-header">
+                            <h3><i class="fa-solid fa-chart-simple"></i> Répartition par mot-clé</h3>
+                        </div>
+                        <div class="panel-body">
+                            <div id="term-distribution-list" class="term-distribution-list">
+                                <!-- Dynamically populated list of progress bars -->
+                                <p class="placeholder-text">Lancez une recherche pour voir la répartition.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Density Heatmap / Timeline representation by Page -->
+                    <div class="dashboard-panel density-panel">
+                        <div class="panel-header">
+                            <h3><i class="fa-solid fa-chart-line"></i> Densité par page</h3>
+                        </div>
+                        <div class="panel-body">
+                            <div id="page-density-container" class="page-density-container">
+                                <!-- Dynamic grid of pages showing match intensity -->
+                                <p class="placeholder-text">Faites une recherche pour visualiser l'emplacement des résultats.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Results Section -->
+                <div class="dashboard-panel results-panel">
+                    <div class="panel-header results-header">
+                        <div class="results-title-group">
+                            <h3><i class="fa-solid fa-list-check"></i> Résultats détaillés</h3>
+                            <span id="results-count-badge" class="badge hidden">0 résultat(s)</span>
+                        </div>
+                        <div class="results-actions">
+                            <div class="search-filter-wrapper">
+                                <i class="fa-solid fa-filter filter-icon"></i>
+                                <input type="text" id="table-filter" placeholder="Filtrer les résultats...">
+                            </div>
+                            <button id="export-csv-btn" class="btn btn-success" disabled>
+                                <i class="fa-solid fa-file-csv"></i> Exporter CSV
+                            </button>
+                        </div>
+                    </div>
+                    <div class="panel-body table-responsive">
+                        <table class="results-table" id="results-table">
+                            <thead>
+                                <tr>
+                                    <th class="sortable" data-sort="term">Mot-clé <i class="fa-solid fa-sort"></i></th>
+                                    <th class="sortable" data-sort="page">Page <i class="fa-solid fa-sort"></i></th>
+                                    <th>Contexte textuel</th>
+                                    <th class="text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="results-table-body">
+                                <tr>
+                                    <td colspan="4" class="empty-table-message">
+                                        <i class="fa-solid fa-magnifying-glass"></i>
+                                        Saisissez des mots-clés et cliquez sur <strong>Rechercher</strong> pour afficher les correspondances.
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- Table Pagination and Footer -->
+                    <div class="table-footer hidden" id="table-footer">
+                        <div class="rows-per-page">
+                            Lignes par page :
+                            <select id="rows-per-page-select">
+                                <option value="10">10</option>
+                                <option value="25" selected>25</option>
+                                <option value="50">50</option>
+                                <option value="100">100</option>
+                            </select>
+                        </div>
+                        <div class="pagination-info" id="pagination-info">
+                            1-10 sur 100
+                        </div>
+                        <div class="pagination-controls">
+                            <button id="prev-page-btn" class="btn-circle" title="Page précédente"><i class="fa-solid fa-chevron-left"></i></button>
+                            <button id="next-page-btn" class="btn-circle" title="Page suivante"><i class="fa-solid fa-chevron-right"></i></button>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+    <!-- Details View Modal -->
+    <div id="result-modal" class="modal hidden">
+        <div class="modal-overlay"></div>
+        <div class="modal-container">
+            <div class="modal-header">
+                <h2>Détail de l'occurrence</h2>
+                <button class="modal-close-btn" id="modal-close-btn"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="modal-meta-grid">
+                    <div class="meta-item">
+                        <span class="meta-label">Mot-clé :</span>
+                        <span class="meta-val badge" id="modal-keyword-badge">-</span>
+                    </div>
+                    <div class="meta-item">
+                        <span class="meta-label">Page du PDF :</span>
+                        <span class="meta-val" id="modal-page-num">-</span>
+                    </div>
+                </div>
+                <div class="modal-context-box">
+                    <span class="meta-label">Contexte textuel complet :</span>
+                    <pre class="context-preview" id="modal-context-text"></pre>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="modal-copy-btn"><i class="fa-solid fa-copy"></i> Copier le texte</button>
+                <button class="btn btn-primary" id="modal-ok-btn">Fermer</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Script -->
+    <script src="app.js"></script>
+</body>
+</html>
