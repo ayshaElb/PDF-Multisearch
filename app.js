@@ -2,27 +2,131 @@
 const pdfjsLib = window['pdfjs-dist/build/pdf'];
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
+// Embedded Regulatory Knowledge Base (GSR2 & UN-R Reference Dates)
+const REGULATORY_DEADLINES = {
+    "13H": { 
+        min_version_required: "01", 
+        deadline_date: "2024-07-07", 
+        must_not_be_na: true, 
+        name: "Freinage des véhicules de tourisme (UN-R 13H)", 
+        subject: "Braking / Freinage" 
+    },
+    "79": { 
+        min_version_required: "03", 
+        deadline_date: "2024-07-07", 
+        must_not_be_na: true, 
+        name: "Équipement de direction (UN-R 79)", 
+        subject: "Steering Equipment / Direction" 
+    },
+    "127": { 
+        min_version_required: "02", 
+        deadline_date: "2026-07-07", 
+        must_not_be_na: true, 
+        name: "Protection des piétons (UN-R 127)", 
+        subject: "Pedestrian Protection / Protection Piétons" 
+    },
+    "152": { 
+        min_version_required: "01", 
+        deadline_date: "2026-07-07", 
+        must_not_be_na: true, 
+        name: "Système de freinage d'urgence AEBS (UN-R 152)", 
+        subject: "Advanced Emergency Braking / Freinage d'Urgence" 
+    },
+    "155": { 
+        min_version_required: "00", 
+        deadline_date: "2024-07-07", 
+        must_not_be_na: true, 
+        name: "Cybersécurité & Système de Gestion (UN-R 155)", 
+        subject: "Cyber Security / Cybersécurité" 
+    },
+    "156": { 
+        min_version_required: "00", 
+        deadline_date: "2024-07-07", 
+        must_not_be_na: true, 
+        name: "Mises à jour logicielles SUMS (UN-R 156)", 
+        subject: "Software Updates / Mises à Jour Logiciel" 
+    },
+    "151": { 
+        min_version_required: "00", 
+        deadline_date: "2024-07-07", 
+        must_not_be_na: true, 
+        name: "Système d'information d'angle mort BSIS (UN-R 151)", 
+        subject: "Blind Spot Detection / Détection Angle Mort" 
+    },
+    "159": { 
+        min_version_required: "00", 
+        deadline_date: "2024-07-07", 
+        must_not_be_na: true, 
+        name: "Système de détection au démarrage MOIS (UN-R 159)", 
+        subject: "Moving Off Detection / Détection au Démarrage" 
+    },
+    "166": { 
+        min_version_required: "00", 
+        deadline_date: "2026-07-07", 
+        must_not_be_na: true, 
+        name: "Détection en marche arrière VRU (UN-R 166)", 
+        subject: "Reversing Detection / Détection Recul" 
+    },
+    "167": { 
+        min_version_required: "00", 
+        deadline_date: "2026-07-07", 
+        must_not_be_na: true, 
+        name: "Vision directe pour poids lourds (UN-R 167)", 
+        subject: "Direct Vision / Vision Directe" 
+    },
+    "51": { 
+        min_version_required: "03", 
+        deadline_date: "2026-07-01", 
+        must_not_be_na: true, 
+        name: "Niveau sonore des véhicules Phase 3 (UN-R 51)", 
+        subject: "Sound Levels / Niveau Sonore (Phase 3)" 
+    },
+    "145": { 
+        min_version_required: "00", 
+        deadline_date: "2022-07-07", 
+        must_not_be_na: true, 
+        name: "Ancrages de sécurité ISOFIX (UN-R 145)", 
+        subject: "ISOFIX Anchorages / Ancrages ISOFIX" 
+    }
+};
+
+// Map UN country codes to names
+const COUNTRY_CODES = {
+    "1": "Allemagne", "2": "France", "3": "Italie", "4": "Pays-Bas", "5": "Suède", 
+    "6": "Belgique", "7": "Hongrie", "8": "Tchéquie", "9": "Espagne", "10": "Serbie",
+    "11": "Royaume-Uni", "12": "Autriche", "13": "Luxembourg", "14": "Suisse", 
+    "16": "Norvège", "17": "Finlande", "18": "Danemark", "19": "Roumanie", "20": "Pologne",
+    "21": "Portugal", "22": "Fédération de Russie", "23": "Grèce", "24": "Irlande",
+    "25": "Croatie", "26": "Slovénie", "27": "Slovaquie", "28": "Bélarus", "29": "Estonie",
+    "30": "République de Moldova", "31": "Bosnie-Herzégovine", "32": "Lettonie",
+    "34": "Bulgarie", "36": "Lituanie", "37": "Turquie", "39": "Azerbaïdjan", 
+    "40": "Macédoine du Nord", "42": "Union Européenne", "43": "Japon", "45": "Australie", 
+    "46": "Ukraine", "47": "Afrique du Sud", "48": "Nouvelle-Zélande", "49": "Chypre", 
+    "50": "Malte", "51": "République de Corée", "52": "Malaisie", "53": "Thaïlande"
+};
+
 // Application State
 const state = {
     pdfDocument: null,
     pdfFilename: '',
     pdfFilesize: '',
-    pagesData: [], // Array of { pageNum, text }
-    keywords: new Set(),
-    searchResults: [], // Array of { id, term, pageNum, context, index, length }
-    searchTime: 0,
+    pagesData: [], 
+    searchResults: [], // Will hold parsed WVTA rows { id, item, subject, regulation_act, regNum, current_version, type_approval_number, country, issue_date, status, rawLine, compliance: { status, reason, required_version, deadline_date } }
     
-    // Pagination & Table State
+    // UI Filter & Simulations
+    simulationDate: 'current', // 'current' or 'YYYY-MM-DD'
+    selectedRiskFilter: null, // 'Bloquant', 'Vigilance', 'Conforme' or null
+    filterText: '',
+    
+    // Pagination
     pagination: {
         currentPage: 1,
         rowsPerPage: 25,
     },
     sort: {
-        column: 'page', // 'term' or 'page'
-        direction: 'asc', // 'asc' or 'desc'
-    },
-    filterText: '',
-    selectedPageFilter: null // For filtering by page density click
+        column: 'item', 
+        direction: 'asc', 
+    }
 };
 
 // DOM Elements
@@ -37,53 +141,56 @@ const parseProgressBar = document.getElementById('parse-progress-bar');
 const parseStatusEl = document.getElementById('parse-status');
 const parsePercentageEl = document.getElementById('parse-percentage');
 
-const keywordInput = document.getElementById('keyword-input');
-const tagsInputContainer = document.getElementById('tags-input-container');
+const simulationDateSelect = document.getElementById('simulation-date-select');
 const searchBtn = document.getElementById('search-btn');
 const resetBtn = document.getElementById('reset-btn');
-
-const optCaseSensitive = document.getElementById('opt-case-sensitive');
-const optWholeWord = document.getElementById('opt-whole-word');
-const optRegex = document.getElementById('opt-regex');
 
 const emptyState = document.getElementById('empty-state');
 const dashboardContent = document.getElementById('dashboard-content');
 
-// Stat Elements
-const statTotalPages = document.getElementById('stat-total-pages');
-const statTotalMatches = document.getElementById('stat-total-matches');
-const statTopTerm = document.getElementById('stat-top-term');
-const statSearchTime = document.getElementById('stat-search-time');
+// Stat Cards
+const statTotalPages = document.getElementById('stat-total-pages'); // Total Reception Acts
+const statTotalMatches = document.getElementById('stat-total-matches'); // Total critical gaps
+const statTopTerm = document.getElementById('stat-top-term'); // Compliance Rate
+const statSearchTime = document.getElementById('stat-search-time'); // Next Deadline
+const cardTotalGaps = document.getElementById('card-total-gaps');
 
-// Distribution & Density Elements
+// Panels
 const termDistributionList = document.getElementById('term-distribution-list');
-const pageDensityContainer = document.getElementById('page-density-container');
+const riskMatrixContainer = document.getElementById('risk-matrix-container');
 
-// Results Table Elements
+// Results Table
 const resultsCountBadge = document.getElementById('results-count-badge');
 const tableFilter = document.getElementById('table-filter');
 const exportCsvBtn = document.getElementById('export-csv-btn');
 const resultsTableBody = document.getElementById('results-table-body');
-const resultsTable = document.getElementById('results-table');
 const tableFooter = document.getElementById('table-footer');
 const rowsPerPageSelect = document.getElementById('rows-per-page-select');
 const paginationInfo = document.getElementById('pagination-info');
 const prevPageBtn = document.getElementById('prev-page-btn');
 const nextPageBtn = document.getElementById('next-page-btn');
 
-// Modal Elements
+// Modal
 const resultModal = document.getElementById('result-modal');
-const modalKeywordBadge = document.getElementById('modal-keyword-badge');
-const modalPageNum = document.getElementById('modal-page-num');
+const modalSubject = document.getElementById('modal-subject');
+const modalAct = document.getElementById('modal-act');
+const modalApprovalNum = document.getElementById('modal-approval-num');
+const modalStatusBadge = document.getElementById('modal-status-badge');
+const modalCountry = document.getElementById('modal-country');
+const modalIdentifiedReg = document.getElementById('modal-identified-reg');
+const modalCurrentVersion = document.getElementById('modal-current-version');
+const modalRequiredVersion = document.getElementById('modal-required-version');
+const modalDeadline = document.getElementById('modal-deadline');
+const modalAlertBox = document.getElementById('modal-alert-box');
+const modalAlertExplanation = document.getElementById('modal-alert-explanation');
 const modalContextText = document.getElementById('modal-context-text');
 const modalCloseBtn = document.getElementById('modal-close-btn');
 const modalCopyBtn = document.getElementById('modal-copy-btn');
 const modalOkBtn = document.getElementById('modal-ok-btn');
 const modalOverlay = document.querySelector('.modal-overlay');
 
-// --- FILE UPLOAD & PARSING ---
+// --- FILE UPLOAD & READ ---
 
-// Drag and drop events
 ['dragenter', 'dragover'].forEach(eventName => {
     dropzone.addEventListener(eventName, (e) => {
         e.preventDefault();
@@ -116,19 +223,17 @@ fileInput.addEventListener('change', (e) => {
     }
 });
 
-// Remove file action
 removeFileBtn.addEventListener('click', (e) => {
-    e.stopPropagation(); // Prevent trigger dropzone click
+    e.stopPropagation();
     resetApp();
 });
 
 function formatBytes(bytes, decimals = 2) {
     if (bytes === 0) return '0 Bytes';
     const k = 1024;
-    const dm = decimals < 0 ? 0 : decimals;
     const sizes = ['Bytes', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(decimals)) + ' ' + sizes[i];
 }
 
 async function handleFileSelect(file) {
@@ -137,25 +242,22 @@ async function handleFileSelect(file) {
         return;
     }
     
-    // Store metadata
     state.pdfFilename = file.name;
     state.pdfFilesize = formatBytes(file.size);
     
-    // UI Update
     pdfFilenameEl.textContent = state.pdfFilename;
     pdfFilesizeEl.textContent = state.pdfFilesize;
     dropzone.classList.add('hidden');
     fileDetails.classList.remove('hidden');
     parseProgressContainer.classList.remove('hidden');
     
-    // Read ArrayBuffer
     const reader = new FileReader();
     reader.onload = async function() {
         try {
             await parsePDF(this.result);
         } catch (error) {
             console.error("PDF Parsing Error: ", error);
-            alert("Erreur lors du chargement ou de l'analyse du PDF : " + error.message);
+            alert("Erreur lors de la lecture du fichier PDF : " + error.message);
             resetApp();
         }
     };
@@ -163,7 +265,7 @@ async function handleFileSelect(file) {
 }
 
 async function parsePDF(arrayBuffer) {
-    updateProgress(0, "Ouverture du document...");
+    updateProgress(0, "Chargement du document...");
     
     const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
     state.pdfDocument = await loadingTask.promise;
@@ -174,13 +276,13 @@ async function parsePDF(arrayBuffer) {
     for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
         updateProgress(
             Math.round((pageNum / totalPages) * 100), 
-            `Extraction du texte - Page ${pageNum}/${totalPages}`
+            `Extraction de la fiche - Page ${pageNum}/${totalPages}`
         );
         
         const page = await state.pdfDocument.getPage(pageNum);
         const textContent = await page.getTextContent();
         
-        // Reconstruct line-based text structure to maintain spacing
+        // Reconstruct line layouts
         let text = "";
         let lastItem = null;
         for (let item of textContent.items) {
@@ -199,17 +301,11 @@ async function parsePDF(arrayBuffer) {
         });
     }
     
-    // Parsing Completed
     parseProgressContainer.classList.add('hidden');
-    statTotalPages.textContent = totalPages;
-    updateSearchButtonState();
+    searchBtn.disabled = false;
     
-    // Show Dashboard with empty welcome state initially
-    emptyState.classList.add('hidden');
-    dashboardContent.classList.remove('hidden');
-    
-    // Setup Page density visualization grid skeleton
-    renderPageDensitySkeleton();
+    // Automatically trigger analysis on load
+    runAnalysis();
 }
 
 function updateProgress(percentage, statusText) {
@@ -218,329 +314,397 @@ function updateProgress(percentage, statusText) {
     parseStatusEl.textContent = statusText;
 }
 
-// --- KEYWORD TAGS SYSTEM ---
+// --- WVTA STRUCTURAL PARSER & ANALYSIS ---
 
-// Event handler to add tags on Enter or comma
-keywordInput.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' || e.key === ',') {
-        e.preventDefault();
-        const value = keywordInput.value.trim().replace(/,$/, ''); // Remove trailing comma if present
-        
-        if (value) {
-            addKeyword(value);
-            keywordInput.value = '';
-        }
+simulationDateSelect.addEventListener('change', (e) => {
+    state.simulationDate = e.target.value;
+    if (state.searchResults.length > 0) {
+        evaluateAllCompliance();
+        updateDashboardUI();
     }
 });
 
-// Clicking container focuses input
-tagsInputContainer.addEventListener('click', (e) => {
-    if (e.target === tagsInputContainer) {
-        keywordInput.focus();
-    }
-});
+searchBtn.addEventListener('click', runAnalysis);
 
-function addKeyword(word) {
-    if (!state.keywords.has(word)) {
-        state.keywords.add(word);
-        renderTags();
-        updateSearchButtonState();
-    }
-}
-
-function removeKeyword(word) {
-    state.keywords.delete(word);
-    renderTags();
-    updateSearchButtonState();
-}
-
-function renderTags() {
-    // Remove existing tags
-    const existingTags = tagsInputContainer.querySelectorAll('.keyword-tag');
-    existingTags.forEach(tag => tag.remove());
+function runAnalysis() {
+    if (state.pagesData.length === 0) return;
     
-    // Create and append new tags before input
-    state.keywords.forEach(word => {
-        const tag = document.createElement('span');
-        tag.className = 'keyword-tag';
-        tag.innerHTML = `${escapeHTML(word)} <i class="fa-solid fa-xmark"></i>`;
-        
-        // Remove click event
-        tag.querySelector('i').addEventListener('click', (e) => {
-            e.stopPropagation();
-            removeKeyword(word);
-        });
-        
-        tagsInputContainer.insertBefore(tag, keywordInput);
-    });
-}
-
-function updateSearchButtonState() {
-    const hasPDF = state.pdfDocument !== null;
-    const hasKeywords = state.keywords.size > 0;
-    searchBtn.disabled = !(hasPDF && hasKeywords);
-}
-
-// --- SEARCH ENGINE ---
-
-searchBtn.addEventListener('click', runSearch);
-
-// Helper to escape regex special characters
-function escapeRegExp(string) {
-    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
-// Helper to escape HTML characters
-function escapeHTML(str) {
-    return str
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;');
-}
-
-function runSearch() {
-    if (!state.pdfDocument || state.keywords.size === 0) return;
+    const parsedWVTA = [];
+    let idCounter = 0;
     
-    const startTime = performance.now();
-    state.searchResults = [];
-    state.selectedPageFilter = null; // Clear page filter if search runs again
-    
-    // Compile search expressions
-    const searchPatterns = [];
-    let hasInvalidRegex = false;
-    
-    state.keywords.forEach(term => {
-        let patternStr = '';
-        let flags = 'g';
-        
-        if (!optCaseSensitive.checked) {
-            flags += 'i';
-        }
-        
-        if (optRegex.checked) {
-            patternStr = term;
-            // Validate regex
-            try {
-                new RegExp(patternStr, flags);
-            } catch (err) {
-                alert(`Expression régulière invalide pour "${term}": ${err.message}`);
-                hasInvalidRegex = true;
-                return;
-            }
-        } else {
-            const escapedTerm = escapeRegExp(term);
-            patternStr = optWholeWord.checked ? `\\b${escapedTerm}\\b` : escapedTerm;
-        }
-        
-        searchPatterns.push({
-            originalTerm: term,
-            regex: new RegExp(patternStr, flags)
-        });
-    });
-    
-    if (hasInvalidRegex) return;
-    
-    let resultId = 0;
-    
-    // Perform search on each page's extracted text
+    // Read and parse line by line
     state.pagesData.forEach(page => {
-        searchPatterns.forEach(pattern => {
-            // Reset regex lastIndex
-            pattern.regex.lastIndex = 0;
-            let match;
+        const lines = page.text.split('\n');
+        
+        lines.forEach(line => {
+            const trimmedLine = line.trim();
+            if (trimmedLine.length < 10) return; // Skip short/blank lines
             
-            while ((match = pattern.regex.exec(page.text)) !== null) {
-                // Find index and match length
-                const matchIndex = match.index;
-                const matchText = match[0];
-                const matchLength = matchText.length;
+            // Regex 1: Detect EU/UN Homologation approval numbers
+            // Matches formats like: E9*127R02/00*1155*01 or e1*2018/858*00001*00 or e4*79R03/01*0123*00
+            const approvalMatch = trimmedLine.match(/\b(([Ee])(\d+))\*([A-Za-z0-9/_-]+)\*([0-9]+)\*([0-9]+)/);
+            
+            // Regex 2: Detect Regulation Numbers (like R127, UN-R 152, 127R, Directive 2018/858)
+            const regMatch = trimmedLine.match(/\b(?:UN[- ]?R\s*|R\s*|Directive\s*)(\d+[A-Z]?)\b/i);
+            
+            if (approvalMatch) {
+                const fullApprovalNum = approvalMatch[0];
+                const countryCode = approvalMatch[1]; // E9, e1, etc.
+                const countryId = approvalMatch[3]; // 9, 1, etc.
+                const actCode = approvalMatch[4]; // 127R02/00, 2018/858, etc.
                 
-                // Get context (approx 60 chars before and 60 chars after)
-                const contextRadius = 60;
-                let startIdx = Math.max(0, matchIndex - contextRadius);
-                let endIdx = Math.min(page.text.length, matchIndex + matchLength + contextRadius);
+                // Extract regulation number and series of modifications from approval actCode
+                let regNum = "";
+                let series = "00";
                 
-                // Construct clean snippet (prevent cutting words if possible, simple approach)
-                let context = page.text.substring(startIdx, endIdx);
+                // Try matching standard "127R02/00" format where 127 is the regulation and 02 is series of modifications
+                const actParts = actCode.match(/^(\d+)[R_]?(\d+)?/i);
+                if (actParts) {
+                    regNum = actParts[1];
+                    series = actParts[2] || "00";
+                }
                 
-                // Adjust index coordinates relative to the context snippet
-                const relativeIndex = matchIndex - startIdx;
+                // Fallback to regMatch if regNum parsing from actCode is empty
+                if (!regNum && regMatch) {
+                    regNum = regMatch[1];
+                }
                 
-                state.searchResults.push({
-                    id: ++resultId,
-                    term: pattern.originalTerm,
-                    pageNum: page.pageNum,
-                    fullPageText: page.text,
-                    context: context,
-                    matchIndex: relativeIndex,
-                    matchLength: matchLength,
-                    globalIndex: matchIndex
-                });
-                
-                // Safety break for infinite regex loops
-                if (pattern.regex.lastIndex === matchIndex) {
-                    pattern.regex.lastIndex++;
+                if (regNum) {
+                    // Extract subject heuristically from text before approval number
+                    const approvalIndex = trimmedLine.indexOf(fullApprovalNum);
+                    let subjectStr = trimmedLine.substring(0, approvalIndex);
+                    
+                    if (regMatch) {
+                        const regIndex = subjectStr.indexOf(regMatch[0]);
+                        if (regIndex > 0) {
+                            subjectStr = subjectStr.substring(0, regIndex);
+                        }
+                    }
+                    
+                    // Clean digits/item numbers at start of line
+                    let subject = subjectStr.replace(/^[0-9.-]+\s*/, '').trim();
+                    
+                    // Cleanup trailing columns/characters
+                    subject = subject.replace(/[|;:\s]+$/, '').trim();
+                    
+                    if (subject.length < 3) {
+                        subject = REGULATORY_DEADLINES[regNum]?.subject || `Homologation Acte ${regNum}`;
+                    }
+                    
+                    // Item number
+                    const itemMatch = trimmedLine.match(/^([0-9a-zA-Z.-]+)/);
+                    const itemNum = itemMatch ? itemMatch[1] : "-";
+                    
+                    // Date
+                    const dateMatch = trimmedLine.match(/\b(19|20)\d{2}[-/]\d{2}[-/]\d{2}\b/);
+                    const issueDate = dateMatch ? dateMatch[0] : "-";
+                    
+                    const countryName = COUNTRY_CODES[countryId] || "Inconnu";
+                    
+                    parsedWVTA.push({
+                        id: ++idCounter,
+                        item: itemNum,
+                        subject: subject,
+                        regulation_act: `UN-R ${regNum}`,
+                        regNum: regNum,
+                        current_version: series,
+                        type_approval_number: fullApprovalNum,
+                        country: `${countryCode} (${countryName})`,
+                        issue_date: issueDate,
+                        status: "Active",
+                        rawLine: trimmedLine
+                    });
+                }
+            } else if (regMatch) {
+                // Check if it's marked as NA / Non Applicable
+                if (trimmedLine.match(/\b(N[/\s]?A|Non[\s-]applicable)\b/i)) {
+                    const regNum = regMatch[1];
+                    
+                    // Get item
+                    const itemMatch = trimmedLine.match(/^([0-9a-zA-Z.-]+)/);
+                    const itemNum = itemMatch ? itemMatch[1] : "-";
+                    
+                    let subject = REGULATORY_DEADLINES[regNum]?.subject || `Homologation Acte ${regNum}`;
+                    
+                    parsedWVTA.push({
+                        id: ++idCounter,
+                        item: itemNum,
+                        subject: subject,
+                        regulation_act: `UN-R ${regNum}`,
+                        regNum: regNum,
+                        current_version: "NA",
+                        type_approval_number: "NA",
+                        country: "-",
+                        issue_date: "-",
+                        status: "NA",
+                        rawLine: trimmedLine
+                    });
                 }
             }
         });
     });
     
-    state.searchTime = Math.round(performance.now() - startTime);
-    
-    // Reset pagination to first page
+    // Save to state
+    state.searchResults = parsedWVTA;
+    state.selectedRiskFilter = null;
     state.pagination.currentPage = 1;
     
-    // Update Stats and Visuals
+    // Evaluate compliance
+    evaluateAllCompliance();
+    
+    // Show UI
+    emptyState.classList.add('hidden');
+    dashboardContent.classList.remove('hidden');
+    
     updateDashboardUI();
 }
 
-// --- DASHBOARD UI UPDATES ---
+// Evaluate compliance for all items
+function evaluateAllCompliance() {
+    // Resolve target simulation date
+    let targetDateStr = '';
+    if (state.simulationDate === 'current') {
+        const today = new Date();
+        targetDateStr = today.toISOString().split('T')[0];
+    } else {
+        targetDateStr = state.simulationDate;
+    }
+    
+    state.searchResults.forEach(item => {
+        item.compliance = evaluateComplianceItem(item, targetDateStr);
+    });
+}
+
+function formatDateFrench(dateStr) {
+    if (!dateStr || dateStr === "-") return "-";
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+}
+
+// Compliance Decision Logic
+function evaluateComplianceItem(item, targetDateStr) {
+    const ref = REGULATORY_DEADLINES[item.regNum];
+    if (!ref) {
+        return { 
+            status: "Conforme", 
+            reason: "Aucune exigence ou échéance GSR2 répertoriée dans la base de référence pour ce règlement.",
+            required_version: "-",
+            deadline_date: "-"
+        };
+    }
+    
+    const deadline = new Date(ref.deadline_date);
+    const targetDate = new Date(targetDateStr);
+    
+    const isPastDeadline = targetDate >= deadline;
+    
+    // Case 1: NA in PDF
+    if (item.status === "NA" || item.current_version === "NA") {
+        if (ref.must_not_be_na && isPastDeadline) {
+            return {
+                status: "Bloquant",
+                reason: `La mention "NA" est obsolète. La réglementation européenne (GSR2) impose une homologation active obligatoire pour le règlement [UN-R ${item.regNum}] depuis le ${formatDateFrench(ref.deadline_date)}.`,
+                required_version: ref.min_version_required,
+                deadline_date: ref.deadline_date
+            };
+        }
+        return { 
+            status: "Conforme", 
+            reason: "L'état Non Applicable (NA) est valide et autorisé pour cette échéance.",
+            required_version: "-",
+            deadline_date: ref.deadline_date
+        };
+    }
+    
+    const currentVer = parseInt(item.current_version, 10) || 0;
+    const requiredVer = parseInt(ref.min_version_required, 10) || 0;
+    
+    // Case 2: Version strictly lower than required after deadline
+    if (isPastDeadline) {
+        if (currentVer < requiredVer) {
+            return {
+                status: "Bloquant",
+                reason: `Série de modifications obsolète [${item.current_version}]. La série minimale [${ref.min_version_required}] est obligatoire depuis le ${formatDateFrench(ref.deadline_date)}.`,
+                required_version: ref.min_version_required,
+                deadline_date: ref.deadline_date
+            };
+        }
+    }
+    
+    // Case 3: Approaching deadline (Vigilance)
+    if (!isPastDeadline) {
+        const timeDiff = deadline.getTime() - targetDate.getTime();
+        const daysDiff = Math.ceil(timeDiff / (1000 * 3600 * 24));
+        
+        // Flag warning if within 180 days (6 months) and version is insufficient
+        if (daysDiff <= 180 && currentVer < requiredVer) {
+            return {
+                status: "Vigilance",
+                reason: `Échéance critique dans ${daysDiff} jours. La série [${ref.min_version_required}] deviendra obligatoire le ${formatDateFrench(ref.deadline_date)} (actuellement en série [${item.current_version}]).`,
+                required_version: ref.min_version_required,
+                deadline_date: ref.deadline_date
+            };
+        }
+    }
+    
+    // Case 4: Special Rule for UN-R 51 (Niveau Sonore - Phase 3)
+    // Sound limit Phase 3 applies on 2026-07-01. Version is still 03, but test limits are tighter.
+    if (item.regNum === "51" && currentVer === 3 && targetDate >= new Date("2026-07-01")) {
+        return {
+            status: "Vigilance",
+            reason: "La série de modifications 03 est active, mais attention : les limites strictes de la Phase 3 (Directive Acoustique) s'appliquent à partir du 1er Juillet 2026. Une vérification des PV d'essais acoustiques est obligatoire.",
+            required_version: "03 (Limites Phase 3)",
+            deadline_date: "2026-07-01"
+        };
+    }
+    
+    // Case 5: Conforme
+    return {
+        status: "Conforme",
+        reason: "Le certificat répond pleinement aux exigences de la réglementation européenne applicable pour cette échéance.",
+        required_version: ref.min_version_required,
+        deadline_date: ref.deadline_date
+    };
+}
+
+// --- DASHBOARD RENDERERS ---
 
 function updateDashboardUI() {
-    // 1. Stat Cards
-    statTotalMatches.textContent = state.searchResults.length;
-    statSearchTime.textContent = `${state.searchTime} ms`;
+    const totalActs = state.searchResults.length;
     
-    // Compute frequency of each term
-    const termCounts = {};
-    state.keywords.forEach(word => termCounts[word] = 0);
-    state.searchResults.forEach(res => {
-        termCounts[res.term] = (termCounts[res.term] || 0) + 1;
-    });
+    const blockers = state.searchResults.filter(res => res.compliance.status === "Bloquant");
+    const vigilances = state.searchResults.filter(res => res.compliance.status === "Vigilance");
+    const conformes = state.searchResults.filter(res => res.compliance.status === "Conforme");
     
-    let topTerm = '-';
-    let topCount = -1;
+    // 1. Stats Cards
+    statTotalPages.textContent = totalActs;
+    statTotalMatches.textContent = blockers.length;
     
-    Object.keys(termCounts).forEach(term => {
-        if (termCounts[term] > topCount) {
-            topCount = termCounts[term];
-            topTerm = term;
+    // Blinking card alert if blockers > 0
+    if (blockers.length > 0) {
+        cardTotalGaps.classList.add('critical-alert-active');
+    } else {
+        cardTotalGaps.classList.remove('critical-alert-active');
+    }
+    
+    // Compliance Rate
+    const complianceRate = totalActs > 0 ? Math.round(((conformes.length + vigilances.length) / totalActs) * 100) : 100;
+    statTopTerm.textContent = `${complianceRate}%`;
+    
+    // Find closest upcoming deadline
+    let targetDateStr = '';
+    if (state.simulationDate === 'current') {
+        targetDateStr = new Date().toISOString().split('T')[0];
+    } else {
+        targetDateStr = state.simulationDate;
+    }
+    const targetDate = new Date(targetDateStr);
+    
+    let closestDeadline = null;
+    let minDiff = Infinity;
+    
+    Object.keys(REGULATORY_DEADLINES).forEach(key => {
+        const deadDate = new Date(REGULATORY_DEADLINES[key].deadline_date);
+        if (deadDate >= targetDate) {
+            const diff = deadDate.getTime() - targetDate.getTime();
+            if (diff < minDiff) {
+                minDiff = diff;
+                closestDeadline = REGULATORY_DEADLINES[key].deadline_date;
+            }
         }
     });
     
-    statTopTerm.textContent = topCount > 0 ? `${topTerm} (${topCount})` : '-';
+    statSearchTime.textContent = closestDeadline ? formatDateFrench(closestDeadline) : "Aucune échéance future";
     
-    // 2. Keyword distribution list (bar chart)
-    renderTermDistribution(termCounts);
+    // 2. Compliance status progress bar
+    renderComplianceBars(conformes.length, vigilances.length, blockers.length, totalActs);
     
-    // 3. Density heatmap page grid
-    renderPageDensityGrid();
+    // 3. Risk Matrix Panels
+    renderRiskMatrix(conformes.length, vigilances.length, blockers.length);
     
-    // 4. Results Table with pagination
+    // 4. Update table
     resultsCountBadge.classList.remove('hidden');
-    resultsCountBadge.textContent = `${state.searchResults.length} résultat(s)`;
-    exportCsvBtn.disabled = state.searchResults.length === 0;
+    resultsCountBadge.textContent = `${state.searchResults.length} acte(s)`;
+    exportCsvBtn.disabled = totalActs === 0;
     
     renderResultsTable();
 }
 
-// Render term frequencies bar chart
-function renderTermDistribution(termCounts) {
+function renderComplianceBars(conf, vig, block, total) {
     termDistributionList.innerHTML = '';
     
-    const sortedTerms = Object.keys(termCounts).sort((a, b) => termCounts[b] - termCounts[a]);
-    const maxCount = Math.max(...Object.values(termCounts), 1);
+    if (total === 0) {
+        termDistributionList.innerHTML = '<p class="placeholder-text">Aucun acte chargé.</p>';
+        return;
+    }
     
-    sortedTerms.forEach(term => {
-        const count = termCounts[term];
-        const percentage = Math.round((count / maxCount) * 100);
-        
+    const statuses = [
+        { label: "Conformes", count: conf, percentage: Math.round((conf / total) * 100), class: "bar-compliant" },
+        { label: "Vigilances", count: vig, percentage: Math.round((vig / total) * 100), class: "bar-vigilance" },
+        { label: "Bloquants (Gaps)", count: block, percentage: Math.round((block / total) * 100), class: "bar-blocker" }
+    ];
+    
+    statuses.forEach(status => {
         const distItem = document.createElement('div');
         distItem.className = 'distribution-item';
         distItem.innerHTML = `
             <div class="dist-meta">
-                <span class="dist-tag">${escapeHTML(term)}</span>
-                <span class="dist-count">${count} occ.</span>
+                <span class="dist-tag">${status.label}</span>
+                <span class="dist-count">${status.count} (${status.percentage}%)</span>
             </div>
             <div class="dist-bar-bg">
-                <div class="dist-bar" style="width: 0%"></div>
+                <div class="dist-bar ${status.class}" style="width: 0%"></div>
+            </div>
+        `;
+        termDistributionList.appendChild(distItem);
+        
+        setTimeout(() => {
+            distItem.querySelector('.dist-bar').style.width = `${status.percentage}%`;
+        }, 50);
+    });
+}
+
+function renderRiskMatrix(conf, vig, block) {
+    riskMatrixContainer.innerHTML = '';
+    
+    const groups = [
+        { key: 'Bloquant', label: '🔴 Gaps Bloquants détectés', count: block, class: 'risk-danger' },
+        { key: 'Vigilance', label: '🟡 Vigilances réglementaires', count: vig, class: 'risk-warning' },
+        { key: 'Conforme', label: '🟢 Règlements Conformes', count: conf, class: 'risk-safe' }
+    ];
+    
+    groups.forEach(g => {
+        const activeClass = state.selectedRiskFilter === g.key ? 'active-filter' : '';
+        const groupEl = document.createElement('div');
+        groupEl.className = `risk-group ${g.class} ${activeClass}`;
+        groupEl.innerHTML = `
+            <div class="risk-group-left">
+                <i class="fa-solid ${g.key === 'Bloquant' ? 'fa-circle-xmark' : g.key === 'Vigilance' ? 'fa-circle-exclamation' : 'fa-circle-check'}"></i>
+                <span>${g.label}</span>
+            </div>
+            <div class="risk-group-right">
+                <span class="risk-group-badge">${g.count}</span>
+                <i class="fa-solid fa-chevron-right"></i>
             </div>
         `;
         
-        termDistributionList.appendChild(distItem);
-        
-        // Trigger CSS animation delay
-        setTimeout(() => {
-            distItem.querySelector('.dist-bar').style.width = `${percentage}%`;
-        }, 50);
-    });
-    
-    if (sortedTerms.length === 0) {
-        termDistributionList.innerHTML = '<p class="placeholder-text">Aucune correspondance trouvée.</p>';
-    }
-}
-
-// Setup empty pages on load
-function renderPageDensitySkeleton() {
-    pageDensityContainer.innerHTML = '';
-    const totalPages = state.pdfDocument.numPages;
-    
-    for (let i = 1; i <= totalPages; i++) {
-        const pageItem = document.createElement('div');
-        pageItem.className = 'page-density-item intensity-0';
-        pageItem.innerHTML = `<span class="page-num-label">${i}</span>`;
-        pageDensityContainer.appendChild(pageItem);
-    }
-}
-
-// Update page background intensities after search
-function renderPageDensityGrid() {
-    pageDensityContainer.innerHTML = '';
-    const totalPages = state.pdfDocument.numPages;
-    
-    // Compute occurrences per page
-    const pageCounts = Array(totalPages + 1).fill(0);
-    state.searchResults.forEach(res => {
-        pageCounts[res.pageNum]++;
-    });
-    
-    const maxPageCount = Math.max(...pageCounts, 1);
-    
-    for (let i = 1; i <= totalPages; i++) {
-        const count = pageCounts[i];
-        const pageItem = document.createElement('div');
-        
-        let intensityClass = 'intensity-0';
-        if (count > 0) {
-            const ratio = count / maxPageCount;
-            if (ratio < 0.25) intensityClass = 'intensity-low';
-            else if (ratio < 0.5) intensityClass = 'intensity-med';
-            else if (ratio < 0.75) intensityClass = 'intensity-high';
-            else intensityClass = 'intensity-extreme';
-        }
-        
-        // Selected highlight
-        const isSelected = state.selectedPageFilter === i;
-        const selectedStyle = isSelected ? 'border: 2px solid var(--secondary); transform: scale(1.08); z-index: 2;' : '';
-        
-        pageItem.className = `page-density-item ${intensityClass}`;
-        if (selectedStyle) pageItem.setAttribute('style', selectedStyle);
-        
-        let badgeHtml = count > 0 ? `<span class="match-density-badge">${count}</span>` : '';
-        pageItem.innerHTML = `
-            <span class="page-num-label">${i}</span>
-            ${badgeHtml}
-        `;
-        
-        // Event: Click on page card filters the table by this page
-        pageItem.addEventListener('click', () => {
-            if (state.selectedPageFilter === i) {
-                state.selectedPageFilter = null; // Toggle off
+        // Filter table on click
+        groupEl.addEventListener('click', () => {
+            if (state.selectedRiskFilter === g.key) {
+                state.selectedRiskFilter = null; // deactivate
             } else {
-                state.selectedPageFilter = i; // Toggle on
+                state.selectedRiskFilter = g.key; // activate
             }
-            state.pagination.currentPage = 1; // reset page
-            renderPageDensityGrid(); // Re-render self to update selected borders
-            renderResultsTable(); // Re-render results table
+            state.pagination.currentPage = 1;
+            renderRiskMatrix(conf, vig, block); // re-render risk levels to update active highlights
+            renderResultsTable();
         });
         
-        pageDensityContainer.appendChild(pageItem);
-    }
+        riskMatrixContainer.appendChild(groupEl);
+    });
 }
 
-// --- RESULTS TABLE & INTERACTIVITY ---
+// --- RESULTS TABLE ---
 
 tableFilter.addEventListener('input', (e) => {
     state.filterText = e.target.value.toLowerCase();
@@ -581,17 +745,12 @@ document.querySelectorAll('th.sortable').forEach(header => {
             state.sort.direction = 'asc';
         }
         
-        // Update sorting indicators
         document.querySelectorAll('th.sortable i').forEach(icon => {
             icon.className = 'fa-solid fa-sort';
         });
         
         const activeIcon = header.querySelector('i');
-        if (state.sort.direction === 'asc') {
-            activeIcon.className = 'fa-solid fa-sort-up';
-        } else {
-            activeIcon.className = 'fa-solid fa-sort-down';
-        }
+        activeIcon.className = state.sort.direction === 'asc' ? 'fa-solid fa-sort-up' : 'fa-solid fa-sort-down';
         
         renderResultsTable();
     });
@@ -600,28 +759,35 @@ document.querySelectorAll('th.sortable').forEach(header => {
 function getFilteredResults() {
     let filtered = [...state.searchResults];
     
-    // Page filter (from density grid click)
-    if (state.selectedPageFilter !== null) {
-        filtered = filtered.filter(res => res.pageNum === state.selectedPageFilter);
+    // 1. Risk Filter (from risk matrix clicks)
+    if (state.selectedRiskFilter) {
+        filtered = filtered.filter(res => res.compliance.status === state.selectedRiskFilter);
     }
     
-    // Text filter (from table text filter input)
+    // 2. Text input filter
     if (state.filterText) {
         filtered = filtered.filter(res => 
-            res.term.toLowerCase().includes(state.filterText) ||
-            res.context.toLowerCase().includes(state.filterText)
+            res.subject.toLowerCase().includes(state.filterText) ||
+            res.regulation_act.toLowerCase().includes(state.filterText) ||
+            res.compliance.status.toLowerCase().includes(state.filterText) ||
+            res.type_approval_number.toLowerCase().includes(state.filterText)
         );
     }
     
-    // Sorting
+    // 3. Sort
     filtered.sort((a, b) => {
         let valA, valB;
-        if (state.sort.column === 'term') {
-            valA = a.term.toLowerCase();
-            valB = b.term.toLowerCase();
-        } else { // page
-            valA = a.pageNum;
-            valB = b.pageNum;
+        if (state.sort.column === 'item') {
+            // Compare items (e.g. numeric sort if possible, fallback to string)
+            valA = a.item;
+            valB = b.item;
+            return valA.localeCompare(valB, undefined, { numeric: true, sensitivity: 'base' });
+        } else if (state.sort.column === 'act') {
+            valA = a.regulation_act.toLowerCase();
+            valB = b.regulation_act.toLowerCase();
+        } else { // status
+            valA = a.compliance.status.toLowerCase();
+            valB = b.compliance.status.toLowerCase();
         }
         
         if (valA < valB) return state.sort.direction === 'asc' ? -1 : 1;
@@ -641,9 +807,9 @@ function renderResultsTable() {
     if (totalItems === 0) {
         resultsTableBody.innerHTML = `
             <tr>
-                <td colspan="4" class="empty-table-message">
-                    <i class="fa-solid fa-magnifying-glass-minus"></i>
-                    Aucun résultat ne correspond à vos filtres.
+                <td colspan="6" class="empty-table-message">
+                    <i class="fa-solid fa-folder-open"></i>
+                    Aucun acte ne correspond aux critères sélectionnés.
                 </td>
             </tr>
         `;
@@ -653,11 +819,9 @@ function renderResultsTable() {
     
     tableFooter.classList.remove('hidden');
     
-    // Pagination slicing
     const limit = state.pagination.rowsPerPage;
     const maxPage = Math.ceil(totalItems / limit);
     
-    // Correct currentPage if out of bounds
     if (state.pagination.currentPage > maxPage) {
         state.pagination.currentPage = maxPage;
     }
@@ -669,35 +833,36 @@ function renderResultsTable() {
     const endIndex = Math.min(startIndex + limit, totalItems);
     const paginatedItems = filtered.slice(startIndex, endIndex);
     
-    // Render Rows
     paginatedItems.forEach(item => {
         const row = document.createElement('tr');
         
-        // Highlight logic in context
-        const escapedSnippet = escapeHTML(item.context);
-        const termInContext = item.context.substr(item.matchIndex, item.matchLength);
-        const escapedTermInContext = escapeHTML(termInContext);
-        
-        // Reconstruct highlighted context text using simple replace or indexing
-        let highlightedContext = escapedSnippet;
-        
-        if (escapedTermInContext) {
-            // Find target inside escaped text and highlight
-            // Note: Since matchIndex relates to raw string, HTML escaping could offset lengths.
-            // A safer HTML snippet highlight is to escape the chunks individually:
-            const before = escapeHTML(item.context.substring(0, item.matchIndex));
-            const match = escapeHTML(item.context.substring(item.matchIndex, item.matchIndex + item.matchLength));
-            const after = escapeHTML(item.context.substring(item.matchIndex + item.matchLength));
-            highlightedContext = `${before}<mark>${match}</mark>${after}`;
+        let badgeClass = 'badge-compliant';
+        let badgeIcon = 'fa-check';
+        if (item.compliance.status === 'Bloquant') {
+            badgeClass = 'badge-blocker';
+            badgeIcon = 'fa-circle-xmark';
+        } else if (item.compliance.status === 'Vigilance') {
+            badgeClass = 'badge-vigilance';
+            badgeIcon = 'fa-triangle-exclamation';
         }
         
+        // Highlight critical version text if blocker
+        const verColor = item.compliance.status === 'Bloquant' ? 'style="color: var(--danger); font-weight: 700;"' : '';
+        const cleanApprovalNum = item.type_approval_number === "NA" ? `<span style="color: var(--text-muted);">Non Applicable (NA)</span>` : item.type_approval_number;
+        
         row.innerHTML = `
-            <td><span class="result-tag-badge">${escapeHTML(item.term)}</span></td>
-            <td><strong>Page ${item.pageNum}</strong></td>
-            <td class="context-cell">${highlightedContext}</td>
+            <td><strong>${escapeHTML(item.item)}</strong></td>
+            <td>${escapeHTML(item.subject)}</td>
+            <td><span class="badge" style="background-color: var(--bg-app); border-color: var(--border);">${escapeHTML(item.regulation_act)}</span></td>
+            <td style="font-family: var(--font-mono); font-size: 11px;">${cleanApprovalNum}</td>
+            <td>
+                <span class="status-badge ${badgeClass}">
+                    <i class="fa-solid ${badgeIcon}"></i> ${item.compliance.status}
+                </span>
+            </td>
             <td class="text-right">
-                <button class="btn btn-secondary view-details-btn" data-id="${item.id}" style="padding: 6px 12px; font-size: 11px;">
-                    <i class="fa-solid fa-eye"></i> Détails
+                <button class="btn btn-secondary view-details-btn" style="padding: 6px 12px; font-size: 11px;">
+                    <i class="fa-solid fa-clipboard-check"></i> Audit
                 </button>
             </td>
         `;
@@ -709,39 +874,59 @@ function renderResultsTable() {
         resultsTableBody.appendChild(row);
     });
     
-    // Update Pagination UI info & buttons
     paginationInfo.textContent = `${startIndex + 1}-${endIndex} sur ${totalItems}`;
     prevPageBtn.disabled = state.pagination.currentPage === 1;
     nextPageBtn.disabled = state.pagination.currentPage === maxPage;
 }
 
-// --- MODAL VIEWS ---
-
-let currentModalItem = null;
+// --- COMPLIANCE MODAL DETAILS ---
 
 function openDetailsModal(item) {
-    currentModalItem = item;
+    modalSubject.textContent = item.subject;
+    modalAct.textContent = item.regulation_act;
+    modalApprovalNum.textContent = item.type_approval_number;
     
-    modalKeywordBadge.textContent = item.term;
-    modalPageNum.textContent = `Page ${item.pageNum}`;
+    // Status Badge inside modal
+    let badgeClass = 'badge-compliant';
+    if (item.compliance.status === 'Bloquant') badgeClass = 'badge-blocker';
+    else if (item.compliance.status === 'Vigilance') badgeClass = 'badge-vigilance';
     
-    // Highlight matched string inside complete sentence preview
-    // We want to reconstruct the display context nicely.
-    // For the modal preview, we can retrieve a wider context block from the page if we want,
-    // or just display the exact item context with mark tags.
-    // Let's grab the snippet and format it.
-    const before = escapeHTML(item.context.substring(0, item.matchIndex));
-    const match = escapeHTML(item.context.substring(item.matchIndex, item.matchIndex + item.matchLength));
-    const after = escapeHTML(item.context.substring(item.matchIndex + item.matchLength));
+    modalStatusBadge.className = `status-badge ${badgeClass}`;
+    modalStatusBadge.textContent = item.compliance.status;
     
-    modalContextText.innerHTML = `... ${before}<mark>${match}</mark>${after} ...`;
+    // Parse values or fallback
+    const ref = REGULATORY_DEADLINES[item.regNum];
+    modalCountry.textContent = item.country !== "-" ? item.country : "N/A";
+    modalIdentifiedReg.textContent = ref ? ref.name : `Règlement ONU N° ${item.regNum}`;
+    
+    // Current modification series version
+    modalCurrentVersion.textContent = item.current_version !== "NA" ? `Série ${item.current_version}` : "Non Applicable (NA)";
+    
+    // Requirements
+    modalRequiredVersion.textContent = ref ? `Série ${ref.min_version_required} minimale` : "Aucune restriction";
+    modalDeadline.textContent = ref ? formatDateFrench(ref.deadline_date) : "N/A";
+    
+    // Alert explanation styling & text
+    modalAlertBox.className = "alert-action-box";
+    if (item.compliance.status === 'Bloquant') {
+        modalAlertBox.classList.add('alert-blocker');
+        modalAlertExplanation.innerHTML = `<strong>Alerte Bloquante :</strong> ${item.compliance.reason}<br><br><strong>Action requise :</strong> Réaliser les essais de mise aux normes, obtenir un certificat d'homologation de série <strong>${ref.min_version_required}</strong> et déposer une demande d'extension de fiche WVTA avant la commercialisation.`;
+    } else if (item.compliance.status === 'Vigilance') {
+        modalAlertBox.classList.add('alert-vigilance');
+        modalAlertExplanation.innerHTML = `<strong>Alerte de Vigilance :</strong> ${item.compliance.reason}<br><br><strong>Action requise :</strong> Planifier le basculement vers la série supérieure et vérifier les dates de fabrication des stocks véhicules pour éviter des blocages d'immatriculation.`;
+    } else {
+        modalAlertBox.classList.add('alert-compliant');
+        modalAlertExplanation.innerHTML = `<strong>Conforme :</strong> ${item.compliance.reason}<br><br><strong>Action requise :</strong> Aucune action requise. L'homologation du véhicule pour ce sujet est à jour.`;
+    }
+    
+    // Raw PDF line
+    modalContextText.textContent = item.rawLine;
     
     resultModal.classList.remove('hidden');
 }
 
 function closeModal() {
     resultModal.classList.add('hidden');
-    currentModalItem = null;
 }
 
 modalCloseBtn.addEventListener('click', closeModal);
@@ -749,54 +934,62 @@ modalOkBtn.addEventListener('click', closeModal);
 modalOverlay.addEventListener('click', closeModal);
 
 modalCopyBtn.addEventListener('click', () => {
-    if (currentModalItem) {
-        navigator.clipboard.writeText(currentModalItem.context)
-            .then(() => {
-                const originalText = modalCopyBtn.innerHTML;
-                modalCopyBtn.innerHTML = '<i class="fa-solid fa-check"></i> Copié !';
-                modalCopyBtn.classList.add('btn-primary');
-                modalCopyBtn.classList.remove('btn-secondary');
-                
-                setTimeout(() => {
-                    modalCopyBtn.innerHTML = originalText;
-                    modalCopyBtn.classList.add('btn-secondary');
-                    modalCopyBtn.classList.remove('btn-primary');
-                }, 2000);
-            })
-            .catch(err => {
-                console.error("Clipboard copy failed: ", err);
-            });
-    }
+    const actRef = modalAct.textContent;
+    const subj = modalSubject.textContent;
+    const status = modalStatusBadge.textContent;
+    const rawLine = modalContextText.textContent;
+    
+    const textToCopy = `=== RAPPORT D'AUDIT HOMOLOGATION ===\nActe réglementaire : ${actRef}\nSujet : ${subj}\nStatut : ${status}\nHomologation véhicule : ${modalCurrentVersion.textContent}\nExigence minimale : ${modalRequiredVersion.textContent}\nÉchéance légale : ${modalDeadline.textContent}\n\nLigne WVTA d'origine : \n${rawLine}\n====================================`;
+    
+    navigator.clipboard.writeText(textToCopy)
+        .then(() => {
+            const originalText = modalCopyBtn.innerHTML;
+            modalCopyBtn.innerHTML = '<i class="fa-solid fa-check"></i> Copié !';
+            modalCopyBtn.classList.add('btn-primary');
+            modalCopyBtn.classList.remove('btn-secondary');
+            
+            setTimeout(() => {
+                modalCopyBtn.innerHTML = originalText;
+                modalCopyBtn.classList.add('btn-secondary');
+                modalCopyBtn.classList.remove('btn-primary');
+            }, 2000);
+        })
+        .catch(err => {
+            console.error("Copy failed: ", err);
+        });
 });
 
-// --- CSV EXPORTER ---
+// --- ENRICHED CSV EXPORT ---
 
 exportCsvBtn.addEventListener('click', () => {
     if (state.searchResults.length === 0) return;
     
     const filtered = getFilteredResults();
     
-    // CSV Header
-    let csvContent = "Mot-cle;Page;Contexte textuel\n";
+    // CSV Header (semicolon delimited)
+    let csvContent = "Item;Sujet Reglementaire;Reference Acte;Numero d'homologation;Version Vehicule;Statut de Conformite;Version Minimale Requise;Date Limite d'Immatriculation;Explication de l'Audit\n";
     
-    // Populate rows (Excel default delimiter in Europe is semicolon ';')
     filtered.forEach(item => {
-        const escapedTerm = item.term.replace(/"/g, '""');
-        // Clean formatting and replace line breaks in context for clean csv lines
-        const cleanedContext = item.context.replace(/\r?\n|\r/g, " ").replace(/"/g, '""').trim();
+        const ref = REGULATORY_DEADLINES[item.regNum];
+        const minVer = ref ? ref.min_version_required : "-";
+        const deadDate = ref ? ref.deadline_date : "-";
         
-        csvContent += `"${escapedTerm}";${item.pageNum};"${cleanedContext}"\n`;
+        const escapedSubj = item.subject.replace(/"/g, '""');
+        const escapedAct = item.regulation_act.replace(/"/g, '""');
+        const escapedApproval = item.type_approval_number.replace(/"/g, '""');
+        const escapedVer = item.current_version.replace(/"/g, '""');
+        const escapedReason = item.compliance.reason.replace(/\r?\n|\r/g, " ").replace(/"/g, '""').trim();
+        
+        csvContent += `"${item.item}";"${escapedSubj}";"${escapedAct}";"${escapedApproval}";"${escapedVer}";"${item.compliance.status}";"${minVer}";"${deadDate}";"${escapedReason}"\n`;
     });
     
-    // Setup download link with UTF-8 BOM for French accents display in Excel
     const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.setAttribute("href", url);
     
-    // Clean filename (replace space/special chars)
     const cleanFilename = state.pdfFilename.replace(/\.[^/.]+$/, "");
-    link.setAttribute("download", `resultats_recherche_${cleanFilename}.csv`);
+    link.setAttribute("download", `audit_conformite_wvta_${cleanFilename}.csv`);
     
     document.body.appendChild(link);
     link.click();
@@ -811,41 +1004,26 @@ function resetApp() {
     state.pdfFilesize = '';
     state.pagesData = [];
     state.searchResults = [];
-    state.searchTime = 0;
-    state.selectedPageFilter = null;
+    state.selectedRiskFilter = null;
     state.filterText = '';
+    state.simulationDate = 'current';
     
-    // Reset keywords tags
-    state.keywords.clear();
-    renderTags();
-    keywordInput.value = '';
-    
-    // Reset options
-    optCaseSensitive.checked = false;
-    optWholeWord.checked = false;
-    optRegex.checked = false;
-    
-    // Reset file selectors UI
     fileInput.value = '';
+    simulationDateSelect.value = 'current';
     dropzone.classList.remove('hidden');
     fileDetails.classList.add('hidden');
     parseProgressContainer.classList.add('hidden');
     
-    // Reset Search Filter input
     tableFilter.value = '';
+    searchBtn.disabled = true;
     
-    // Disable Search button
-    updateSearchButtonState();
-    
-    // View back to empty state
     emptyState.classList.remove('hidden');
     dashboardContent.classList.add('hidden');
 }
 
-// Global reset btn listener
 resetBtn.addEventListener('click', () => {
     if (state.pdfDocument) {
-        if (confirm("Voulez-vous vraiment réinitialiser la recherche et supprimer le document en cours ?")) {
+        if (confirm("Voulez-vous vraiment réinitialiser l'analyseur de conformité réglementaire ?")) {
             resetApp();
         }
     } else {

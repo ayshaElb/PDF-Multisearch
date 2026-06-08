@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PDF Multi-Search Dashboard</title>
+    <title>Analyseur de Conformité Réglementaire WVTA (GSR2)</title>
     <!-- Google Fonts: Plus Jakarta Sans & JetBrains Mono for Code/Context -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -21,27 +21,27 @@
         <header class="app-header">
             <div class="brand">
                 <div class="logo-icon">
-                    <i class="fa-solid fa-file-pdf"></i>
+                    <i class="fa-solid fa-car-side"></i>
                 </div>
                 <div>
-                    <h1>PDF Multi-Search</h1>
-                    <p class="tagline">Analyseur & Dashboard de Recherche</p>
+                    <h1>WVTA compliance</h1>
+                    <p class="tagline">Analyseur Réglementaire GSR2</p>
                 </div>
             </div>
             
-            <!-- Upload Box inside Header for compact layout, or Sidebar -->
+            <!-- Upload Box -->
             <div class="upload-section">
                 <div id="dropzone" class="dropzone">
                     <input type="file" id="file-input" accept="application/pdf" class="hidden">
                     <div class="dropzone-content">
                         <i class="fa-solid fa-cloud-arrow-up upload-icon"></i>
-                        <h3>Glissez votre PDF ici</h3>
-                        <p>ou <span class="browse-btn">parcourez vos fichiers</span></p>
-                        <span class="file-limits">Fichier PDF uniquement</span>
+                        <h3>Fiche WVTA (Partie III)</h3>
+                        <p>Glissez le PDF ici ou <span class="browse-btn">parcourez</span></p>
+                        <span class="file-limits">Format PDF requis</span>
                     </div>
                 </div>
                 
-                <!-- File Details (hidden initially) -->
+                <!-- File Details -->
                 <div id="file-details" class="file-details hidden">
                     <div class="file-info-container">
                         <div class="file-icon"><i class="fa-regular fa-file-pdf"></i></div>
@@ -65,45 +65,28 @@
                 </div>
             </div>
 
-            <!-- Configuration / Search Controls -->
+            <!-- Configuration / Simulation Parameters -->
             <div class="control-panel">
                 <div class="section-title">
-                    <i class="fa-solid fa-sliders"></i>
-                    <h2>Paramètres de recherche</h2>
+                    <i class="fa-solid fa-clock-rotate-left"></i>
+                    <h2>Simulation Temporelle</h2>
                 </div>
                 
-                <!-- Tag Input for Keywords -->
+                <!-- Target Simulation Date Dropdown -->
                 <div class="input-group">
-                    <label for="keyword-input">Mots-clés / Expressions</label>
-                    <div class="tags-input-container" id="tags-input-container">
-                        <input type="text" id="keyword-input" placeholder="Ajoutez un terme et appuyez sur Entrée...">
-                    </div>
-                    <span class="input-tip">Saisissez un terme puis appuyez sur <strong>Entrée</strong> ou une <strong>virgule</strong></span>
-                </div>
-
-                <!-- Search Options -->
-                <div class="options-group">
-                    <label class="checkbox-container">
-                        <input type="checkbox" id="opt-case-sensitive">
-                        <span class="checkmark"></span>
-                        Respecter la casse (a ≠ A)
-                    </label>
-                    <label class="checkbox-container">
-                        <input type="checkbox" id="opt-whole-word">
-                        <span class="checkmark"></span>
-                        Mots entiers uniquement
-                    </label>
-                    <label class="checkbox-container">
-                        <input type="checkbox" id="opt-regex">
-                        <span class="checkmark"></span>
-                        Expression régulière (Regex)
-                    </label>
+                    <label for="simulation-date-select">Échéance à tester</label>
+                    <select id="simulation-date-select" class="styled-select">
+                        <option value="current">État Actuel (Date Système)</option>
+                        <option value="2026-07-01">1er Juillet 2026 (Jalon de transition)</option>
+                        <option value="2026-07-07">7 Juillet 2026 (Obligation GSR2 stricte)</option>
+                    </select>
+                    <span class="input-tip">Simule la validité de la WVTA à la date réglementaire choisie.</span>
                 </div>
 
                 <!-- Action Buttons -->
                 <div class="action-buttons">
                     <button id="search-btn" class="btn btn-primary" disabled>
-                        <i class="fa-solid fa-magnifying-glass"></i> Rechercher
+                        <i class="fa-solid fa-microchip"></i> Lancer l'analyse
                     </button>
                     <button id="reset-btn" class="btn btn-secondary">
                         <i class="fa-solid fa-rotate-left"></i> Réinitialiser
@@ -112,7 +95,7 @@
             </div>
             
             <div class="header-footer">
-                <p>Développé avec <i class="fa-solid fa-heart text-danger"></i> &bull; Client-Side uniquement</p>
+                <p>Outil d'Homologation &bull; Client-Side &bull; Conforme GSR2</p>
             </div>
         </header>
 
@@ -122,10 +105,10 @@
             <div id="empty-state" class="empty-state">
                 <div class="empty-state-card">
                     <div class="pulse-icon">
-                        <i class="fa-solid fa-file-invoice"></i>
+                        <i class="fa-solid fa-shield-halved"></i>
                     </div>
-                    <h2>Aucun document chargé</h2>
-                    <p>Pour commencer à effectuer des recherches multiples et explorer les statistiques, veuillez d'abord charger un document PDF dans la zone latérale.</p>
+                    <h2>Aucun document d'homologation chargé</h2>
+                    <p>Pour auditer la conformité réglementaire de votre véhicule et identifier les "gaps" de réception par rapport aux jalons GSR2, veuillez charger une fiche de réception européenne (WVTA Partie III) dans le panneau latéral.</p>
                 </div>
             </div>
 
@@ -136,69 +119,69 @@
                 <div class="stats-grid">
                     <div class="stat-card">
                         <div class="stat-icon icon-blue">
-                            <i class="fa-regular fa-file"></i>
+                            <i class="fa-solid fa-list-ol"></i>
                         </div>
                         <div class="stat-data">
-                            <span class="stat-label">Pages Analysées</span>
+                            <span class="stat-label">Actes Réceptionnés</span>
                             <span id="stat-total-pages" class="stat-value">0</span>
                         </div>
                     </div>
                     
-                    <div class="stat-card">
+                    <div class="stat-card" id="card-total-gaps">
                         <div class="stat-icon icon-purple">
-                            <i class="fa-solid fa-circle-nodes"></i>
+                            <i class="fa-solid fa-triangle-exclamation"></i>
                         </div>
                         <div class="stat-data">
-                            <span class="stat-label">Total Correspondances</span>
-                            <span id="stat-total-matches" class="stat-value">0</span>
+                            <span class="stat-label">Gaps Bloquants</span>
+                            <span id="stat-total-matches" class="stat-value text-danger">0</span>
                         </div>
                     </div>
                     
                     <div class="stat-card">
                         <div class="stat-icon icon-teal">
-                            <i class="fa-solid fa-crown"></i>
+                            <i class="fa-solid fa-percent"></i>
                         </div>
                         <div class="stat-data">
-                            <span class="stat-label">Terme Principal</span>
+                            <span class="stat-label">Taux de conformité GSR2</span>
                             <span id="stat-top-term" class="stat-value">-</span>
                         </div>
                     </div>
 
                     <div class="stat-card">
                         <div class="stat-icon icon-orange">
-                            <i class="fa-solid fa-gauge-high"></i>
+                            <i class="fa-solid fa-calendar-day"></i>
                         </div>
                         <div class="stat-data">
-                            <span class="stat-label">Vitesse de recherche</span>
-                            <span id="stat-search-time" class="stat-value">0 ms</span>
+                            <span class="stat-label">Prochaine Échéance</span>
+                            <span id="stat-search-time" class="stat-value">-</span>
                         </div>
                     </div>
                 </div>
 
                 <!-- Distribution and Chart Section -->
                 <div class="dashboard-grid">
-                    <!-- Keyword Occurrence Chart (CSS/SVG) -->
+                    <!-- Compliance Status Distribution -->
                     <div class="dashboard-panel chart-panel">
                         <div class="panel-header">
-                            <h3><i class="fa-solid fa-chart-simple"></i> Répartition par mot-clé</h3>
+                            <h3><i class="fa-solid fa-chart-pie"></i> Statuts de conformité</h3>
                         </div>
                         <div class="panel-body">
                             <div id="term-distribution-list" class="term-distribution-list">
-                                <!-- Dynamically populated list of progress bars -->
-                                <p class="placeholder-text">Lancez une recherche pour voir la répartition.</p>
+                                <!-- Dynamically populated list of compliance bars -->
+                                <p class="placeholder-text">Lancez l'analyse réglementaire.</p>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Density Heatmap / Timeline representation by Page -->
+                    <!-- Risk matrix grouped by severity -->
                     <div class="dashboard-panel density-panel">
                         <div class="panel-header">
-                            <h3><i class="fa-solid fa-chart-line"></i> Densité par page</h3>
+                            <h3><i class="fa-solid fa-circle-nodes"></i> Matrice des risques</h3>
                         </div>
                         <div class="panel-body">
-                            <div id="page-density-container" class="page-density-container">
-                                <!-- Dynamic grid of pages showing match intensity -->
-                                <p class="placeholder-text">Faites une recherche pour visualiser l'emplacement des résultats.</p>
+                            <div id="risk-matrix-container" class="risk-matrix-container">
+                                <!-- Dynamic groups of risks -->
+                                <p class="placeholder-text">Lancez l'analyse pour visualiser la matrice des risques.</p>
                             </div>
                         </div>
                     </div>
@@ -208,16 +191,16 @@
                 <div class="dashboard-panel results-panel">
                     <div class="panel-header results-header">
                         <div class="results-title-group">
-                            <h3><i class="fa-solid fa-list-check"></i> Résultats détaillés</h3>
-                            <span id="results-count-badge" class="badge hidden">0 résultat(s)</span>
+                            <h3><i class="fa-solid fa-table-list"></i> Audits Détaillés par Acte Réglementaire</h3>
+                            <span id="results-count-badge" class="badge hidden">0 acte(s)</span>
                         </div>
                         <div class="results-actions">
                             <div class="search-filter-wrapper">
                                 <i class="fa-solid fa-filter filter-icon"></i>
-                                <input type="text" id="table-filter" placeholder="Filtrer les résultats...">
+                                <input type="text" id="table-filter" placeholder="Filtrer par acte ou statut...">
                             </div>
                             <button id="export-csv-btn" class="btn btn-success" disabled>
-                                <i class="fa-solid fa-file-csv"></i> Exporter CSV
+                                <i class="fa-solid fa-file-csv"></i> Exporter CSV Enrichi
                             </button>
                         </div>
                     </div>
@@ -225,17 +208,19 @@
                         <table class="results-table" id="results-table">
                             <thead>
                                 <tr>
-                                    <th class="sortable" data-sort="term">Mot-clé <i class="fa-solid fa-sort"></i></th>
-                                    <th class="sortable" data-sort="page">Page <i class="fa-solid fa-sort"></i></th>
-                                    <th>Contexte textuel</th>
-                                    <th class="text-right">Actions</th>
+                                    <th class="sortable" data-sort="item">Item <i class="fa-solid fa-sort"></i></th>
+                                    <th>Sujet réglementaire</th>
+                                    <th class="sortable" data-sort="act">Référence Acte <i class="fa-solid fa-sort"></i></th>
+                                    <th>N° Homologation</th>
+                                    <th class="sortable" data-sort="status">Statut <i class="fa-solid fa-sort"></i></th>
+                                    <th class="text-right">Action</th>
                                 </tr>
                             </thead>
                             <tbody id="results-table-body">
                                 <tr>
-                                    <td colspan="4" class="empty-table-message">
-                                        <i class="fa-solid fa-magnifying-glass"></i>
-                                        Saisissez des mots-clés et cliquez sur <strong>Rechercher</strong> pour afficher les correspondances.
+                                    <td colspan="6" class="empty-table-message">
+                                        <i class="fa-solid fa-receipt"></i>
+                                        Veuillez charger votre document et lancer l'analyse pour visualiser l'audit détaillé.
                                     </td>
                                 </tr>
                             </tbody>
@@ -272,27 +257,57 @@
         <div class="modal-overlay"></div>
         <div class="modal-container">
             <div class="modal-header">
-                <h2>Détail de l'occurrence</h2>
+                <h2>Fiche de Conformité Réglementaire</h2>
                 <button class="modal-close-btn" id="modal-close-btn"><i class="fa-solid fa-xmark"></i></button>
             </div>
             <div class="modal-body">
                 <div class="modal-meta-grid">
                     <div class="meta-item">
-                        <span class="meta-label">Mot-clé :</span>
-                        <span class="meta-val badge" id="modal-keyword-badge">-</span>
+                        <span class="meta-label">Sujet réglementaire :</span>
+                        <span class="meta-val" id="modal-subject">-</span>
                     </div>
                     <div class="meta-item">
-                        <span class="meta-label">Page du PDF :</span>
-                        <span class="meta-val" id="modal-page-num">-</span>
+                        <span class="meta-label">Référence Acte :</span>
+                        <span class="meta-val" id="modal-act">-</span>
+                    </div>
+                    <div class="meta-item">
+                        <span class="meta-label">N° Homologation :</span>
+                        <span class="meta-val" id="modal-approval-num">-</span>
+                    </div>
+                    <div class="meta-item">
+                        <span class="meta-label">Statut d'Évaluation :</span>
+                        <span class="meta-val badge" id="modal-status-badge">-</span>
                     </div>
                 </div>
+                
+                <!-- Detailed regulatory analysis card -->
+                <div class="regulatory-report-card" id="regulatory-report-card">
+                    <div class="report-section">
+                        <h4>Détails de l'Analyse d'Homologation :</h4>
+                        <ul class="analysis-list">
+                            <li><span class="list-label">Pays Homologateur :</span> <strong id="modal-country">-</strong></li>
+                            <li><span class="list-label">Règlement identifié :</span> <strong id="modal-identified-reg">-</strong></li>
+                            <li><span class="list-label">Série de modifications véhicule :</span> <strong id="modal-current-version">-</strong></li>
+                            <li><span class="list-label">Série minimale requise (GSR2) :</span> <strong id="modal-required-version">-</strong></li>
+                            <li><span class="list-label">Échéance d'application obligatoire :</span> <strong id="modal-deadline">-</strong></li>
+                        </ul>
+                    </div>
+                    <div class="alert-action-box" id="modal-alert-box">
+                        <div class="alert-icon-wrapper"><i class="fa-solid fa-triangle-exclamation"></i></div>
+                        <div class="alert-content">
+                            <h5>Alerte de Non-Conformité</h5>
+                            <p id="modal-alert-explanation">-</p>
+                        </div>
+                    </div>
+                </div>
+                
                 <div class="modal-context-box">
-                    <span class="meta-label">Contexte textuel complet :</span>
+                    <span class="meta-label">Ligne brute extraite du PDF :</span>
                     <pre class="context-preview" id="modal-context-text"></pre>
                 </div>
             </div>
             <div class="modal-footer">
-                <button class="btn btn-secondary" id="modal-copy-btn"><i class="fa-solid fa-copy"></i> Copier le texte</button>
+                <button class="btn btn-secondary" id="modal-copy-btn"><i class="fa-solid fa-copy"></i> Copier l'audit</button>
                 <button class="btn btn-primary" id="modal-ok-btn">Fermer</button>
             </div>
         </div>
