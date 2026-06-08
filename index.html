@@ -3,317 +3,447 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Analyseur de Conformité Réglementaire WVTA (GSR2)</title>
-    <!-- Google Fonts: Plus Jakarta Sans & JetBrains Mono for Code/Context -->
+    <title>Analyseur WVTA – Conformité GSR2 & ONU/CEE</title>
+    <meta name="description" content="Outil expert d'homologation automobile : validation de conformité WVTA (GSR2) par analyse croisée CSIAM + WVTA avec référentiel réglementaire ONU/CEE.">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <!-- FontAwesome for Premium Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Main Stylesheet -->
     <link rel="stylesheet" href="style.css">
-    <!-- PDF.js CDN -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 </head>
 <body>
-    <div class="app-container">
-        <!-- Sidebar / Header Area -->
-        <header class="app-header">
-            <div class="brand">
-                <div class="logo-icon">
-                    <i class="fa-solid fa-car-side"></i>
-                </div>
-                <div>
-                    <h1>WVTA compliance</h1>
-                    <p class="tagline">Analyseur Réglementaire GSR2</p>
-                </div>
+<div class="app-container">
+
+    <!-- ===================================================
+         SIDEBAR
+    =================================================== -->
+    <header class="app-header">
+
+        <!-- Branding -->
+        <div class="brand">
+            <div class="logo-icon">
+                <i class="fa-solid fa-car-side"></i>
             </div>
-            
-            <!-- Upload Box -->
-            <div class="upload-section">
-                <div id="dropzone" class="dropzone">
-                    <input type="file" id="file-input" accept="application/pdf" class="hidden">
-                    <div class="dropzone-content">
-                        <i class="fa-solid fa-cloud-arrow-up upload-icon"></i>
-                        <h3>Fiche WVTA (Partie III)</h3>
-                        <p>Glissez le PDF ici ou <span class="browse-btn">parcourez</span></p>
-                        <span class="file-limits">Format PDF requis</span>
-                    </div>
-                </div>
-                
-                <!-- File Details -->
-                <div id="file-details" class="file-details hidden">
-                    <div class="file-info-container">
-                        <div class="file-icon"><i class="fa-regular fa-file-pdf"></i></div>
-                        <div class="file-meta">
-                            <span id="pdf-filename" class="filename">document.pdf</span>
-                            <span id="pdf-filesize" class="filesize">0 KB</span>
-                        </div>
-                        <button id="remove-file-btn" class="icon-btn remove-btn" title="Retirer le document"><i class="fa-solid fa-xmark"></i></button>
-                    </div>
-                    
-                    <!-- Parsing Progress -->
-                    <div id="parse-progress-container" class="progress-container hidden">
-                        <div class="progress-bar-wrapper">
-                            <div id="parse-progress-bar" class="progress-bar" style="width: 0%"></div>
-                        </div>
-                        <div class="progress-text">
-                            <span id="parse-status">Lecture du document...</span>
-                            <span id="parse-percentage">0%</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Configuration / Simulation Parameters -->
-            <div class="control-panel">
-                <div class="section-title">
-                    <i class="fa-solid fa-clock-rotate-left"></i>
-                    <h2>Simulation Temporelle</h2>
-                </div>
-                
-                <!-- Target Simulation Date Dropdown -->
-                <div class="input-group">
-                    <label for="simulation-date-select">Échéance à tester</label>
-                    <select id="simulation-date-select" class="styled-select">
-                        <option value="current">État Actuel (Date Système)</option>
-                        <option value="2026-07-01">1er Juillet 2026 (Jalon de transition)</option>
-                        <option value="2026-07-07">7 Juillet 2026 (Obligation GSR2 stricte)</option>
-                    </select>
-                    <span class="input-tip">Simule la validité de la WVTA à la date réglementaire choisie.</span>
-                </div>
-
-                <!-- Action Buttons -->
-                <div class="action-buttons">
-                    <button id="search-btn" class="btn btn-primary" disabled>
-                        <i class="fa-solid fa-microchip"></i> Lancer l'analyse
-                    </button>
-                    <button id="reset-btn" class="btn btn-secondary">
-                        <i class="fa-solid fa-rotate-left"></i> Réinitialiser
-                    </button>
-                </div>
-            </div>
-            
-            <div class="header-footer">
-                <p>Outil d'Homologation &bull; Client-Side &bull; Conforme GSR2</p>
-            </div>
-        </header>
-
-        <!-- Main Dashboard View -->
-        <main class="app-main">
-            <!-- Welcome / Empty State -->
-            <div id="empty-state" class="empty-state">
-                <div class="empty-state-card">
-                    <div class="pulse-icon">
-                        <i class="fa-solid fa-shield-halved"></i>
-                    </div>
-                    <h2>Aucun document d'homologation chargé</h2>
-                    <p>Pour auditer la conformité réglementaire de votre véhicule et identifier les "gaps" de réception par rapport aux jalons GSR2, veuillez charger une fiche de réception européenne (WVTA Partie III) dans le panneau latéral.</p>
-                </div>
-            </div>
-
-            <!-- Dashboard Content (hidden initially) -->
-            <div id="dashboard-content" class="dashboard-content hidden">
-                
-                <!-- Stat Cards -->
-                <div class="stats-grid">
-                    <div class="stat-card">
-                        <div class="stat-icon icon-blue">
-                            <i class="fa-solid fa-list-ol"></i>
-                        </div>
-                        <div class="stat-data">
-                            <span class="stat-label">Actes Réceptionnés</span>
-                            <span id="stat-total-pages" class="stat-value">0</span>
-                        </div>
-                    </div>
-                    
-                    <div class="stat-card" id="card-total-gaps">
-                        <div class="stat-icon icon-purple">
-                            <i class="fa-solid fa-triangle-exclamation"></i>
-                        </div>
-                        <div class="stat-data">
-                            <span class="stat-label">Gaps Bloquants</span>
-                            <span id="stat-total-matches" class="stat-value text-danger">0</span>
-                        </div>
-                    </div>
-                    
-                    <div class="stat-card">
-                        <div class="stat-icon icon-teal">
-                            <i class="fa-solid fa-percent"></i>
-                        </div>
-                        <div class="stat-data">
-                            <span class="stat-label">Taux de conformité GSR2</span>
-                            <span id="stat-top-term" class="stat-value">-</span>
-                        </div>
-                    </div>
-
-                    <div class="stat-card">
-                        <div class="stat-icon icon-orange">
-                            <i class="fa-solid fa-calendar-day"></i>
-                        </div>
-                        <div class="stat-data">
-                            <span class="stat-label">Prochaine Échéance</span>
-                            <span id="stat-search-time" class="stat-value">-</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Distribution and Chart Section -->
-                <div class="dashboard-grid">
-                    <!-- Compliance Status Distribution -->
-                    <div class="dashboard-panel chart-panel">
-                        <div class="panel-header">
-                            <h3><i class="fa-solid fa-chart-pie"></i> Statuts de conformité</h3>
-                        </div>
-                        <div class="panel-body">
-                            <div id="term-distribution-list" class="term-distribution-list">
-                                <!-- Dynamically populated list of compliance bars -->
-                                <p class="placeholder-text">Lancez l'analyse réglementaire.</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Risk matrix grouped by severity -->
-                    <div class="dashboard-panel density-panel">
-                        <div class="panel-header">
-                            <h3><i class="fa-solid fa-circle-nodes"></i> Matrice des risques</h3>
-                        </div>
-                        <div class="panel-body">
-                            <div id="risk-matrix-container" class="risk-matrix-container">
-                                <!-- Dynamic groups of risks -->
-                                <p class="placeholder-text">Lancez l'analyse pour visualiser la matrice des risques.</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Results Section -->
-                <div class="dashboard-panel results-panel">
-                    <div class="panel-header results-header">
-                        <div class="results-title-group">
-                            <h3><i class="fa-solid fa-table-list"></i> Audits Détaillés par Acte Réglementaire</h3>
-                            <span id="results-count-badge" class="badge hidden">0 acte(s)</span>
-                        </div>
-                        <div class="results-actions">
-                            <div class="search-filter-wrapper">
-                                <i class="fa-solid fa-filter filter-icon"></i>
-                                <input type="text" id="table-filter" placeholder="Filtrer par acte ou statut...">
-                            </div>
-                            <button id="export-csv-btn" class="btn btn-success" disabled>
-                                <i class="fa-solid fa-file-csv"></i> Exporter CSV Enrichi
-                            </button>
-                        </div>
-                    </div>
-                    <div class="panel-body table-responsive">
-                        <table class="results-table" id="results-table">
-                            <thead>
-                                <tr>
-                                    <th class="sortable" data-sort="item">Item <i class="fa-solid fa-sort"></i></th>
-                                    <th>Sujet réglementaire</th>
-                                    <th class="sortable" data-sort="act">Référence Acte <i class="fa-solid fa-sort"></i></th>
-                                    <th>N° Homologation</th>
-                                    <th class="sortable" data-sort="status">Statut <i class="fa-solid fa-sort"></i></th>
-                                    <th class="text-right">Action</th>
-                                </tr>
-                            </thead>
-                            <tbody id="results-table-body">
-                                <tr>
-                                    <td colspan="6" class="empty-table-message">
-                                        <i class="fa-solid fa-receipt"></i>
-                                        Veuillez charger votre document et lancer l'analyse pour visualiser l'audit détaillé.
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                    
-                    <!-- Table Pagination and Footer -->
-                    <div class="table-footer hidden" id="table-footer">
-                        <div class="rows-per-page">
-                            Lignes par page :
-                            <select id="rows-per-page-select">
-                                <option value="10">10</option>
-                                <option value="25" selected>25</option>
-                                <option value="50">50</option>
-                                <option value="100">100</option>
-                            </select>
-                        </div>
-                        <div class="pagination-info" id="pagination-info">
-                            1-10 sur 100
-                        </div>
-                        <div class="pagination-controls">
-                            <button id="prev-page-btn" class="btn-circle" title="Page précédente"><i class="fa-solid fa-chevron-left"></i></button>
-                            <button id="next-page-btn" class="btn-circle" title="Page suivante"><i class="fa-solid fa-chevron-right"></i></button>
-                        </div>
-                    </div>
-                </div>
-
-            </div>
-        </main>
-    </div>
-
-    <!-- Details View Modal -->
-    <div id="result-modal" class="modal hidden">
-        <div class="modal-overlay"></div>
-        <div class="modal-container">
-            <div class="modal-header">
-                <h2>Fiche de Conformité Réglementaire</h2>
-                <button class="modal-close-btn" id="modal-close-btn"><i class="fa-solid fa-xmark"></i></button>
-            </div>
-            <div class="modal-body">
-                <div class="modal-meta-grid">
-                    <div class="meta-item">
-                        <span class="meta-label">Sujet réglementaire :</span>
-                        <span class="meta-val" id="modal-subject">-</span>
-                    </div>
-                    <div class="meta-item">
-                        <span class="meta-label">Référence Acte :</span>
-                        <span class="meta-val" id="modal-act">-</span>
-                    </div>
-                    <div class="meta-item">
-                        <span class="meta-label">N° Homologation :</span>
-                        <span class="meta-val" id="modal-approval-num">-</span>
-                    </div>
-                    <div class="meta-item">
-                        <span class="meta-label">Statut d'Évaluation :</span>
-                        <span class="meta-val badge" id="modal-status-badge">-</span>
-                    </div>
-                </div>
-                
-                <!-- Detailed regulatory analysis card -->
-                <div class="regulatory-report-card" id="regulatory-report-card">
-                    <div class="report-section">
-                        <h4>Détails de l'Analyse d'Homologation :</h4>
-                        <ul class="analysis-list">
-                            <li><span class="list-label">Pays Homologateur :</span> <strong id="modal-country">-</strong></li>
-                            <li><span class="list-label">Règlement identifié :</span> <strong id="modal-identified-reg">-</strong></li>
-                            <li><span class="list-label">Série de modifications véhicule :</span> <strong id="modal-current-version">-</strong></li>
-                            <li><span class="list-label">Série minimale requise (GSR2) :</span> <strong id="modal-required-version">-</strong></li>
-                            <li><span class="list-label">Échéance d'application obligatoire :</span> <strong id="modal-deadline">-</strong></li>
-                        </ul>
-                    </div>
-                    <div class="alert-action-box" id="modal-alert-box">
-                        <div class="alert-icon-wrapper"><i class="fa-solid fa-triangle-exclamation"></i></div>
-                        <div class="alert-content">
-                            <h5>Alerte de Non-Conformité</h5>
-                            <p id="modal-alert-explanation">-</p>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="modal-context-box">
-                    <span class="meta-label">Ligne brute extraite du PDF :</span>
-                    <pre class="context-preview" id="modal-context-text"></pre>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-secondary" id="modal-copy-btn"><i class="fa-solid fa-copy"></i> Copier l'audit</button>
-                <button class="btn btn-primary" id="modal-ok-btn">Fermer</button>
+            <div>
+                <h1>WVTA Compliance</h1>
+                <p class="tagline">Analyseur Réglementaire GSR2 v2.0</p>
             </div>
         </div>
+
+        <!-- ── UPLOAD SECTION ── -->
+        <div class="upload-section">
+
+            <!-- Document 1 : WVTA -->
+            <div class="upload-card upload-card-wvta">
+                <div class="upload-card-header">
+                    <span class="doc-badge badge-wvta"><i class="fa-solid fa-certificate"></i> WVTA Partie III</span>
+                    <span class="doc-hint">Requis</span>
+                </div>
+                <div id="wvta-dropzone" class="dropzone dropzone-wvta">
+                    <input type="file" id="wvta-file-input" accept="application/pdf" class="hidden">
+                    <div class="dropzone-content">
+                        <i class="fa-solid fa-cloud-arrow-up upload-icon"></i>
+                        <h3>Certificat WVTA</h3>
+                        <p>Glissez ici ou <span class="browse-btn">parcourez</span></p>
+                        <span class="file-limits">Format PDF • Tableau des actes réglementaires</span>
+                    </div>
+                </div>
+                <div id="wvta-file-details" class="file-details hidden">
+                    <div class="file-info-container">
+                        <div class="file-icon wvta-icon"><i class="fa-regular fa-file-pdf"></i></div>
+                        <div class="file-meta">
+                            <span id="wvta-filename" class="filename">document.pdf</span>
+                            <span id="wvta-filesize" class="filesize">0 KB</span>
+                        </div>
+                        <button id="wvta-remove-btn" class="icon-btn remove-btn" title="Retirer"><i class="fa-solid fa-xmark"></i></button>
+                    </div>
+                    <div id="wvta-parse-progress" class="progress-container hidden">
+                        <div class="progress-bar-wrapper">
+                            <div id="wvta-progress-bar" class="progress-bar progress-wvta" style="width:0%"></div>
+                        </div>
+                        <div class="progress-text">
+                            <span id="wvta-progress-status">Lecture...</span>
+                            <span id="wvta-progress-pct">0%</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Document 2 : CSIAM -->
+            <div class="upload-card upload-card-csiam">
+                <div class="upload-card-header">
+                    <span class="doc-badge badge-csiam"><i class="fa-solid fa-clipboard-list"></i> Fiche CSIAM</span>
+                    <span class="doc-hint optional-hint">Optionnel</span>
+                </div>
+                <div id="csiam-dropzone" class="dropzone dropzone-csiam">
+                    <input type="file" id="csiam-file-input" accept="application/pdf" class="hidden">
+                    <div class="dropzone-content">
+                        <i class="fa-solid fa-cloud-arrow-up upload-icon"></i>
+                        <h3>Fiche de Réception</h3>
+                        <p>Glissez ici ou <span class="browse-btn">parcourez</span></p>
+                        <span class="file-limits">Fiche CSIAM • Élargit le périmètre d'analyse</span>
+                    </div>
+                </div>
+                <div id="csiam-file-details" class="file-details hidden">
+                    <div class="file-info-container">
+                        <div class="file-icon csiam-icon"><i class="fa-regular fa-file-pdf"></i></div>
+                        <div class="file-meta">
+                            <span id="csiam-filename" class="filename">csiam.pdf</span>
+                            <span id="csiam-filesize" class="filesize">0 KB</span>
+                        </div>
+                        <button id="csiam-remove-btn" class="icon-btn remove-btn" title="Retirer"><i class="fa-solid fa-xmark"></i></button>
+                    </div>
+                    <div id="csiam-parse-progress" class="progress-container hidden">
+                        <div class="progress-bar-wrapper">
+                            <div id="csiam-progress-bar" class="progress-bar progress-csiam" style="width:0%"></div>
+                        </div>
+                        <div class="progress-text">
+                            <span id="csiam-progress-status">Analyse CSIAM...</span>
+                            <span id="csiam-progress-pct">0%</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Catégorie véhicule détectée -->
+                <div id="vehicle-category-badge" class="category-badge-wrapper hidden">
+                    <i class="fa-solid fa-tag"></i>
+                    <span>Catégorie détectée :</span>
+                    <strong id="vehicle-category-text" class="category-pill">M1</strong>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── PIPELINE TIMELINE ── -->
+        <div class="pipeline-section">
+            <div class="section-title">
+                <i class="fa-solid fa-diagram-project"></i>
+                <h2>Pipeline d'Analyse</h2>
+            </div>
+            <div class="pipeline-steps">
+                <div id="pipeline-step-1" class="pipeline-step pipeline-idle" data-icon="fa-solid fa-file-magnifying-glass">
+                    <div class="step-connector"></div>
+                    <div class="step-icon"><i class="fa-solid fa-file-magnifying-glass"></i></div>
+                    <div class="step-info">
+                        <span class="step-num">Étape 1</span>
+                        <span class="step-label">Analyse CSIAM</span>
+                    </div>
+                </div>
+                <div id="pipeline-step-2" class="pipeline-step pipeline-idle" data-icon="fa-solid fa-database">
+                    <div class="step-connector"></div>
+                    <div class="step-icon"><i class="fa-solid fa-database"></i></div>
+                    <div class="step-info">
+                        <span class="step-num">Étape 2</span>
+                        <span class="step-label">Référentiel RAG</span>
+                    </div>
+                </div>
+                <div id="pipeline-step-3" class="pipeline-step pipeline-idle" data-icon="fa-solid fa-table-list">
+                    <div class="step-connector"></div>
+                    <div class="step-icon"><i class="fa-solid fa-table-list"></i></div>
+                    <div class="step-info">
+                        <span class="step-num">Étape 3</span>
+                        <span class="step-label">Extraction WVTA</span>
+                    </div>
+                </div>
+                <div id="pipeline-step-4" class="pipeline-step pipeline-idle" data-icon="fa-solid fa-scale-balanced">
+                    <div class="step-icon"><i class="fa-solid fa-scale-balanced"></i></div>
+                    <div class="step-info">
+                        <span class="step-num">Étape 4</span>
+                        <span class="step-label">Évaluation</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── SIMULATION TEMPORELLE ── -->
+        <div class="control-panel">
+            <div class="section-title">
+                <i class="fa-solid fa-clock-rotate-left"></i>
+                <h2>Simulation Temporelle</h2>
+            </div>
+            <div class="input-group">
+                <label for="simulation-date-select">Échéance à tester</label>
+                <select id="simulation-date-select" class="styled-select">
+                    <option value="current">État Actuel (Date Système)</option>
+                    <option value="2026-07-01">1er Juillet 2026 – UN-R 51 Phase 3</option>
+                    <option value="2026-07-07">7 Juillet 2026 – Obligation GSR2 Phase 2</option>
+                    <option value="2024-07-07">7 Juillet 2024 – GSR2 Phase 1 (rétrospectif)</option>
+                </select>
+                <span class="input-tip">Simule la validité du certificat à la date réglementaire choisie.</span>
+            </div>
+            <div class="action-buttons">
+                <button id="search-btn" class="btn btn-primary" disabled>
+                    <i class="fa-solid fa-microchip"></i> Lancer l'analyse
+                </button>
+                <button id="reset-btn" class="btn btn-secondary">
+                    <i class="fa-solid fa-rotate-left"></i> Reset
+                </button>
+            </div>
+        </div>
+
+        <div class="header-footer">
+            <p>Outil d'Homologation &bull; 100% Client-Side &bull; GSR2 / ONU-CEE</p>
+        </div>
+    </header>
+
+    <!-- ===================================================
+         MAIN DASHBOARD
+    =================================================== -->
+    <main class="app-main">
+
+        <!-- Empty State -->
+        <div id="empty-state" class="empty-state">
+            <div class="empty-state-card">
+                <div class="pulse-icon"><i class="fa-solid fa-shield-halved"></i></div>
+                <h2>Aucun document chargé</h2>
+                <p>Chargez le certificat <strong>WVTA Partie III</strong> (requis) et optionnellement la <strong>fiche CSIAM</strong> pour lancer l'audit de conformité réglementaire GSR2 en 4 étapes.</p>
+                <div class="empty-workflow">
+                    <div class="workflow-step">
+                        <i class="fa-solid fa-upload"></i>
+                        <span>Charger WVTA</span>
+                    </div>
+                    <i class="fa-solid fa-arrow-right workflow-arrow"></i>
+                    <div class="workflow-step">
+                        <i class="fa-solid fa-clipboard-list"></i>
+                        <span>+ CSIAM (optionnel)</span>
+                    </div>
+                    <i class="fa-solid fa-arrow-right workflow-arrow"></i>
+                    <div class="workflow-step">
+                        <i class="fa-solid fa-microchip"></i>
+                        <span>Analyser</span>
+                    </div>
+                    <i class="fa-solid fa-arrow-right workflow-arrow"></i>
+                    <div class="workflow-step">
+                        <i class="fa-solid fa-file-code"></i>
+                        <span>Rapport JSON</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dashboard Content -->
+        <div id="dashboard-content" class="dashboard-content hidden">
+
+            <!-- Stat Cards -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon icon-blue"><i class="fa-solid fa-list-ol"></i></div>
+                    <div class="stat-data">
+                        <span class="stat-label">Actes Analysés</span>
+                        <span id="stat-total-acts" class="stat-value">0</span>
+                    </div>
+                </div>
+                <div class="stat-card" id="card-blockers">
+                    <div class="stat-icon icon-purple"><i class="fa-solid fa-triangle-exclamation"></i></div>
+                    <div class="stat-data">
+                        <span class="stat-label">Gaps Bloquants</span>
+                        <span id="stat-blockers" class="stat-value text-danger">0</span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon icon-teal"><i class="fa-solid fa-percent"></i></div>
+                    <div class="stat-data">
+                        <span class="stat-label">Taux de Conformité</span>
+                        <span id="stat-compliance" class="stat-value">-</span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon icon-orange"><i class="fa-solid fa-calendar-day"></i></div>
+                    <div class="stat-data">
+                        <span class="stat-label">Prochaine Échéance</span>
+                        <span id="stat-next-deadline" class="stat-value">-</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charts Row -->
+            <div class="dashboard-grid">
+                <div class="dashboard-panel chart-panel">
+                    <div class="panel-header">
+                        <h3><i class="fa-solid fa-chart-pie"></i> Statuts de conformité</h3>
+                    </div>
+                    <div class="panel-body">
+                        <div id="term-distribution-list" class="term-distribution-list">
+                            <p class="placeholder-text">Lancez l'analyse réglementaire.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="dashboard-panel density-panel">
+                    <div class="panel-header">
+                        <h3><i class="fa-solid fa-circle-nodes"></i> Matrice des risques</h3>
+                    </div>
+                    <div class="panel-body">
+                        <div id="risk-matrix-container" class="risk-matrix-container">
+                            <p class="placeholder-text">Lancez l'analyse pour visualiser la matrice des risques.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Results Table -->
+            <div class="dashboard-panel results-panel">
+                <div class="panel-header results-header">
+                    <div class="results-title-group">
+                        <h3><i class="fa-solid fa-table-list"></i> Audits Détaillés par Acte Réglementaire</h3>
+                        <span id="results-count-badge" class="badge hidden">0 acte(s)</span>
+                    </div>
+                    <div class="results-actions">
+                        <div class="search-filter-wrapper">
+                            <i class="fa-solid fa-filter filter-icon"></i>
+                            <input type="text" id="table-filter" placeholder="Filtrer acte, statut...">
+                        </div>
+                        <button id="export-csv-btn" class="btn btn-success btn-sm" disabled>
+                            <i class="fa-solid fa-file-csv"></i> CSV
+                        </button>
+                        <button id="export-json-btn" class="btn btn-json btn-sm" disabled>
+                            <i class="fa-solid fa-code"></i> JSON
+                        </button>
+                    </div>
+                </div>
+                <div class="panel-body table-responsive">
+                    <table class="results-table" id="results-table">
+                        <thead>
+                            <tr>
+                                <th class="sortable" data-sort="item">Item <i class="fa-solid fa-sort"></i></th>
+                                <th>Sujet réglementaire</th>
+                                <th class="sortable" data-sort="act">Règlement <i class="fa-solid fa-sort"></i></th>
+                                <th>N° Homologation</th>
+                                <th>Série <small>(act./req.)</small></th>
+                                <th>Pays</th>
+                                <th class="sortable" data-sort="status">Statut <i class="fa-solid fa-sort"></i></th>
+                                <th class="text-right">Détail</th>
+                            </tr>
+                        </thead>
+                        <tbody id="results-table-body">
+                            <tr>
+                                <td colspan="8" class="empty-table-message">
+                                    <i class="fa-solid fa-receipt"></i>
+                                    Chargez votre WVTA et lancez l'analyse pour afficher l'audit détaillé.
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="table-footer hidden" id="table-footer">
+                    <div class="rows-per-page">
+                        Lignes/page :
+                        <select id="rows-per-page-select">
+                            <option value="10">10</option>
+                            <option value="25" selected>25</option>
+                            <option value="50">50</option>
+                            <option value="100">100</option>
+                        </select>
+                    </div>
+                    <div class="pagination-info" id="pagination-info">1-10 sur 100</div>
+                    <div class="pagination-controls">
+                        <button id="prev-page-btn" class="btn-circle" title="Précédente"><i class="fa-solid fa-chevron-left"></i></button>
+                        <button id="next-page-btn" class="btn-circle" title="Suivante"><i class="fa-solid fa-chevron-right"></i></button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- JSON Output Panel -->
+            <div id="json-output-panel" class="dashboard-panel json-panel hidden">
+                <div class="panel-header json-panel-header">
+                    <div class="json-title-group">
+                        <h3><i class="fa-solid fa-file-code"></i> Rapport JSON Réglementaire</h3>
+                        <span class="json-subtitle">Format conforme au brief d'Ingénieur Homologation</span>
+                    </div>
+                    <div class="json-actions">
+                        <button id="copy-json-btn" class="btn btn-ghost-json">
+                            <i class="fa-solid fa-copy"></i> Copier JSON
+                        </button>
+                        <button id="download-json-btn" class="btn btn-json-dl">
+                            <i class="fa-solid fa-download"></i> Télécharger
+                        </button>
+                    </div>
+                </div>
+                <div class="json-panel-body">
+                    <pre id="json-output-pre" class="json-output"></pre>
+                </div>
+            </div>
+
+        </div><!-- /dashboard-content -->
+    </main>
+</div><!-- /app-container -->
+
+<!-- ===================================================
+     MODAL – Fiche de Conformité Détaillée
+=================================================== -->
+<div id="result-modal" class="modal hidden">
+    <div class="modal-overlay"></div>
+    <div class="modal-container">
+        <div class="modal-header">
+            <h2><i class="fa-solid fa-file-shield"></i> Fiche de Conformité Réglementaire</h2>
+            <button class="modal-close-btn" id="modal-close-btn"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="modal-body">
+            <div class="modal-meta-grid">
+                <div class="meta-item">
+                    <span class="meta-label">Sujet réglementaire</span>
+                    <span class="meta-val" id="modal-subject">-</span>
+                </div>
+                <div class="meta-item">
+                    <span class="meta-label">Référence Acte</span>
+                    <span class="meta-val" id="modal-act">-</span>
+                </div>
+                <div class="meta-item">
+                    <span class="meta-label">N° Homologation WVTA</span>
+                    <span class="meta-val mono-val" id="modal-approval-num">-</span>
+                </div>
+                <div class="meta-item">
+                    <span class="meta-label">Statut d'Évaluation</span>
+                    <span class="meta-val badge" id="modal-status-badge">-</span>
+                </div>
+            </div>
+
+            <div class="regulatory-report-card" id="regulatory-report-card">
+                <div class="report-section">
+                    <h4><i class="fa-solid fa-magnifying-glass-chart"></i> Analyse d'Homologation</h4>
+                    <ul class="analysis-list">
+                        <li>
+                            <span class="list-label">Pays Homologateur (E-mark)</span>
+                            <strong id="modal-country">-</strong>
+                        </li>
+                        <li>
+                            <span class="list-label">Règlement identifié</span>
+                            <strong id="modal-identified-reg">-</strong>
+                        </li>
+                        <li>
+                            <span class="list-label">Série de modifications véhicule</span>
+                            <strong id="modal-current-version">-</strong>
+                        </li>
+                        <li>
+                            <span class="list-label">Série minimale requise (GSR2)</span>
+                            <strong id="modal-required-version">-</strong>
+                        </li>
+                        <li>
+                            <span class="list-label">Échéance d'application obligatoire</span>
+                            <strong id="modal-deadline">-</strong>
+                        </li>
+                    </ul>
+                </div>
+                <div class="alert-action-box alert-compliant" id="modal-alert-box">
+                    <div class="alert-icon-wrapper"><i class="fa-solid fa-circle-check"></i></div>
+                    <div class="alert-content">
+                        <h5>Conformité Validée</h5>
+                        <p id="modal-alert-explanation">-</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-context-box">
+                <span class="meta-label">Ligne brute extraite du PDF WVTA :</span>
+                <pre class="context-preview" id="modal-context-text"></pre>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" id="modal-copy-btn"><i class="fa-solid fa-copy"></i> Copier JSON</button>
+            <button class="btn btn-primary" id="modal-ok-btn">Fermer</button>
+        </div>
     </div>
-    
-    <!-- Script -->
-    <script src="app.js"></script>
+</div>
+
+<script src="app.js"></script>
 </body>
 </html>
